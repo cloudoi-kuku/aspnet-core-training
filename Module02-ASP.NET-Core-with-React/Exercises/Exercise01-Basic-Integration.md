@@ -71,7 +71,7 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
                var todo = _todos.FirstOrDefault(t => t.Id == id);
                if (todo == null)
                    return NotFound();
-               
+
                return Ok(todo);
            }
 
@@ -81,7 +81,7 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
                todo.Id = _todos.Count > 0 ? _todos.Max(t => t.Id) + 1 : 1;
                todo.CreatedAt = DateTime.Now;
                _todos.Add(todo);
-               
+
                return CreatedAtAction(nameof(GetTodo), new { id = todo.Id }, todo);
            }
 
@@ -91,10 +91,10 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
                var existingTodo = _todos.FirstOrDefault(t => t.Id == id);
                if (existingTodo == null)
                    return NotFound();
-               
+
                existingTodo.Title = todo.Title;
                existingTodo.IsCompleted = todo.IsCompleted;
-               
+
                return NoContent();
            }
 
@@ -104,7 +104,7 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
                var todo = _todos.FirstOrDefault(t => t.Id == id);
                if (todo == null)
                    return NotFound();
-               
+
                _todos.Remove(todo);
                return NoContent();
            }
@@ -127,26 +127,32 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
 
 3. **Configure Vite for ASP.NET Core integration**. Update `clientapp/vite.config.ts`:
    ```typescript
-   import { defineConfig } from 'vite'
-   import react from '@vitejs/plugin-react'
+  import { defineConfig } from 'vite'
+  import react from '@vitejs/plugin-react'
 
-   // https://vite.dev/config/
-   export default defineConfig({
-     plugins: [react()],
-     server: {
-       port: 3000,
-       proxy: {
-         '/api': {
-           target: 'https://localhost:7000',
-           changeOrigin: true,
-           secure: false
-         }
-       }
-     },
-     build: {
-       outDir: 'dist'
-     }
-   })
+  // https://vitejs.dev/config/
+  export default defineConfig({
+    plugins: [react()],
+    server: {
+      port: 3000,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/swagger': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    },
+    build: {
+      outDir: '../wwwroot',
+      emptyOutDir: true
+    }
+  })
    ```
 
 4. **Return to project root**:
@@ -156,50 +162,95 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
 
 5. **Configure ASP.NET Core to serve React app**. Update `Program.cs`:
    ```csharp
-   var builder = WebApplication.CreateBuilder(args);
+  var builder = WebApplication.CreateBuilder(args);
 
-   // Add services to the container
-   builder.Services.AddControllers();
-   builder.Services.AddEndpointsApiExplorer();
-   builder.Services.AddSwaggerGen();
+  // Add services to the container.
+  builder.Services.AddControllers();
+  builder.Services.AddEndpointsApiExplorer();
+  builder.Services.AddSwaggerGen();
 
-   // Add SPA static files
-   builder.Services.AddSpaStaticFiles(configuration =>
-   {
-       configuration.RootPath = "clientapp/dist";
-   });
+  // Configure CORS
+  builder.Services.AddCors(options =>
+  {
+      options.AddPolicy("AllowReactApp",
+          policy =>
+          {
+              policy.WithOrigins("http://localhost:3000")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod();
+          });
+  });
 
-   var app = builder.Build();
+  var app = builder.Build();
 
-   // Configure the HTTP request pipeline
-   if (app.Environment.IsDevelopment())
-   {
-       app.UseSwagger();
-       app.UseSwaggerUI();
-   }
+  // Configure the HTTP request pipeline.
+  if (app.Environment.IsDevelopment())
+  {
+      app.UseSwagger();
+      app.UseSwaggerUI();
+  }
 
-   app.UseHttpsRedirection();
-   app.UseStaticFiles();
-   app.UseSpaStaticFiles();
+  app.UseHttpsRedirection();
 
-   app.UseRouting();
-   app.UseAuthorization();
+  app.UseCors("AllowReactApp");
 
-   app.MapControllers();
+  app.UseAuthorization();
 
-   // Configure SPA
-   app.UseSpa(spa =>
-   {
-       spa.Options.SourcePath = "clientapp";
+  app.MapControllers();
 
-       if (app.Environment.IsDevelopment())
-       {
-           spa.UseProxyToSpaDevelopmentServer("http://localhost:3000");
-       }
-   });
+  // Serve static files from wwwroot
+  app.UseStaticFiles();
 
-   app.Run();
+  // Fallback to index.html for client-side routing
+  app.MapFallbackToFile("index.html");
+
+  app.Run();
    ```
+6. Update Properties/launchsettings.json to use port 5000 for the backend:
+```json
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:34497",
+      "sslPort": 44341
+    }
+  },
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "https://localhost:7193;http://localhost:5000",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
+```
+
 
 ### Part 3: Create React Components (15 minutes)
 
@@ -313,7 +364,7 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
      return (
        <div className="todo-container">
          <h1>Todo List</h1>
-         
+
          <form onSubmit={handleAddTodo} className="add-todo-form">
            <input
              type="text"
@@ -334,7 +385,7 @@ Create a full-stack application with React frontend and ASP.NET Core backend, es
                  onChange={() => handleToggle(todo)}
                />
                <span>{todo.title}</span>
-               <button 
+               <button
                  onClick={() => handleDelete(todo.id!)}
                  className="delete-button"
                >
