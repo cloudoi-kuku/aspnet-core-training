@@ -5,7 +5,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.75.0"
+      version = "~> 3.70.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -19,11 +19,19 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.11.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.4.0"
+    }
   }
   
   backend "azurerm" {
     resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstateecommerce"
+    storage_account_name = "tfstateecommerce33"
     container_name       = "tfstate"
     key                  = "ecommerce-microservices.tfstate"
   }
@@ -31,10 +39,29 @@ terraform {
 
 # Configure Azure Provider
 provider "azurerm" {
+  skip_provider_registration = true
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
     }
+  }
+}
+
+# Configure Kubernetes Provider
+provider "kubernetes" {
+  host                   = try(azurerm_kubernetes_cluster.main.kube_config.0.host, null)
+  client_certificate     = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate), null)
+  client_key             = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key), null)
+  cluster_ca_certificate = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate), null)
+}
+
+# Configure Helm Provider
+provider "helm" {
+  kubernetes {
+    host                   = try(azurerm_kubernetes_cluster.main.kube_config.0.host, null)
+    client_certificate     = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate), null)
+    client_key             = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key), null)
+    cluster_ca_certificate = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate), null)
   }
 }
 
@@ -47,7 +74,7 @@ variable "resource_group_name" {
 
 variable "location" {
   type        = string
-  default     = "East US"
+  default     = "West US 2"
   description = "Azure region for resources"
 }
 
@@ -167,7 +194,7 @@ resource "azurerm_kubernetes_cluster" "main" {
     vm_size        = "Standard_D2s_v3"
     vnet_subnet_id = azurerm_subnet.aks.id
     
-    auto_scaling_enabled = true
+    enable_auto_scaling  = true
     min_count            = 2
     max_count            = 5
     
@@ -197,7 +224,8 @@ resource "azurerm_kubernetes_cluster" "main" {
   }
   
   azure_active_directory_role_based_access_control {
-    azure_rbac_enabled = true
+    managed                = true
+    azure_rbac_enabled     = true
   }
   
   tags = azurerm_resource_group.main.tags
@@ -211,7 +239,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "apps" {
   node_count            = 3
   vnet_subnet_id        = azurerm_subnet.aks.id
   
-  auto_scaling_enabled = true
+  enable_auto_scaling  = true
   min_count            = 3
   max_count            = 10
   

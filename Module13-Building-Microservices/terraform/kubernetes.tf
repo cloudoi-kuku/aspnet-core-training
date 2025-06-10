@@ -1,20 +1,3 @@
-# Configure Kubernetes Provider
-provider "kubernetes" {
-  host                   = azurerm_kubernetes_cluster.main.kube_config.0.host
-  client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
-  client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
-}
-
-# Configure Helm Provider
-provider "helm" {
-  kubernetes {
-    host                   = azurerm_kubernetes_cluster.main.kube_config.0.host
-    client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate)
-    client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key)
-    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate)
-  }
-}
 
 # Namespaces
 resource "kubernetes_namespace" "apps" {
@@ -123,67 +106,7 @@ resource "kubernetes_config_map" "app_config" {
   }
 }
 
-# Secret Provider Class for Azure Key Vault
-resource "kubernetes_manifest" "secretproviderclass" {
-  manifest = {
-    apiVersion = "secrets-store.csi.x-k8s.io/v1"
-    kind       = "SecretProviderClass"
-    metadata = {
-      name      = "azure-keyvault-secrets"
-      namespace = kubernetes_namespace.apps.metadata[0].name
-    }
-    spec = {
-      provider = "azure"
-      parameters = {
-        usePodIdentity         = "false"
-        useVMManagedIdentity   = "true"
-        userAssignedIdentityID = azurerm_kubernetes_cluster.main.kubelet_identity[0].client_id
-        keyvaultName           = azurerm_key_vault.main.name
-        tenantId               = data.azurerm_client_config.current.tenant_id
-        objects = yamlencode([
-          {
-            objectName = "sql-connection-string"
-            objectType = "secret"
-          },
-          {
-            objectName = "servicebus-connection-string"
-            objectType = "secret"
-          },
-          {
-            objectName = "appinsights-instrumentation-key"
-            objectType = "secret"
-          }
-        ])
-      }
-      secretObjects = [
-        {
-          secretName = "app-secrets"
-          type       = "Opaque"
-          data = [
-            {
-              objectName = "sql-connection-string"
-              key        = "SqlConnectionString"
-            },
-            {
-              objectName = "servicebus-connection-string"
-              key        = "ServiceBusConnectionString"
-            },
-            {
-              objectName = "appinsights-instrumentation-key"
-              key        = "AppInsightsKey"
-            }
-          ]
-        }
-      ]
-    }
-  }
-  
-  depends_on = [
-    azurerm_key_vault_secret.sql_connection_string,
-    azurerm_key_vault_secret.servicebus_connection_string,
-    azurerm_key_vault_secret.appinsights_key
-  ]
-}
+
 
 # Install Cert-Manager for TLS
 resource "helm_release" "cert_manager" {
@@ -206,36 +129,7 @@ resource "helm_release" "cert_manager" {
   }
 }
 
-# ClusterIssuer for Let's Encrypt
-resource "kubernetes_manifest" "letsencrypt_issuer" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata = {
-      name = "letsencrypt-prod"
-    }
-    spec = {
-      acme = {
-        server = "https://acme-v02.api.letsencrypt.org/directory"
-        email  = "admin@${var.project_name}.com"
-        privateKeySecretRef = {
-          name = "letsencrypt-prod"
-        }
-        solvers = [
-          {
-            http01 = {
-              ingress = {
-                class = "nginx"
-              }
-            }
-          }
-        ]
-      }
-    }
-  }
-  
-  depends_on = [helm_release.cert_manager]
-}
+
 
 # Horizontal Pod Autoscaler for services
 resource "kubernetes_horizontal_pod_autoscaler_v2" "product_catalog_hpa" {
@@ -362,33 +256,105 @@ resource "kubernetes_network_policy" "allow_ingress" {
   }
 }
 
-# Service Monitor for Prometheus
-resource "kubernetes_manifest" "service_monitor" {
-  manifest = {
-    apiVersion = "monitoring.coreos.com/v1"
-    kind       = "ServiceMonitor"
-    metadata = {
-      name      = "ecommerce-apps"
-      namespace = kubernetes_namespace.apps.metadata[0].name
-      labels = {
-        release = helm_release.prometheus_stack.name
-      }
-    }
-    spec = {
-      selector = {
-        matchLabels = {
-          "app.kubernetes.io/part-of" = "ecommerce"
-        }
-      }
-      endpoints = [
-        {
-          port     = "metrics"
-          interval = "30s"
-          path     = "/metrics"
-        }
-      ]
-    }
+# Apply Kubernetes manifests using kubectl after cluster is ready
+resource "null_resource" "apply_manifests" {
+  depends_on = [
+    azurerm_kubernetes_cluster.main,
+    helm_release.nginx_ingress,
+    helm_release.cert_manager,
+    helm_release.prometheus_stack
+  ]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Get AKS credentials
+      az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_kubernetes_cluster.main.name} --overwrite-existing
+
+      # Apply Secret Provider Class
+      kubectl apply -f - <<EOF
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: azure-keyvault-secrets
+  namespace: ${kubernetes_namespace.apps.metadata[0].name}
+spec:
+  provider: azure
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"
+    userAssignedIdentityID: ${azurerm_kubernetes_cluster.main.kubelet_identity[0].client_id}
+    keyvaultName: ${azurerm_key_vault.main.name}
+    tenantId: ${data.azurerm_client_config.current.tenant_id}
+    objects: |
+      array:
+        - |
+          objectName: sql-connection-string
+          objectType: secret
+        - |
+          objectName: servicebus-connection-string
+          objectType: secret
+        - |
+          objectName: appinsights-instrumentation-key
+          objectType: secret
+  secretObjects:
+  - secretName: app-secrets
+    type: Opaque
+    data:
+    - objectName: sql-connection-string
+      key: SqlConnectionString
+    - objectName: servicebus-connection-string
+      key: ServiceBusConnectionString
+    - objectName: appinsights-instrumentation-key
+      key: AppInsightsKey
+EOF
+
+      # Apply Let's Encrypt ClusterIssuer
+      kubectl apply -f - <<EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@${var.project_name}.com
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+EOF
+
+      # Apply Service Monitor
+      kubectl apply -f - <<EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: ecommerce-apps
+  namespace: ${kubernetes_namespace.apps.metadata[0].name}
+  labels:
+    release: ${helm_release.prometheus_stack.name}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: ecommerce
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+EOF
+    EOT
   }
-  
-  depends_on = [helm_release.prometheus_stack]
+
+  # Cleanup on destroy
+  provisioner "local-exec" {
+    when    = destroy
+    command = <<-EOT
+      kubectl delete secretproviderclass azure-keyvault-secrets -n ecommerce-apps --ignore-not-found=true
+      kubectl delete clusterissuer letsencrypt-prod --ignore-not-found=true
+      kubectl delete servicemonitor ecommerce-apps -n ecommerce-apps --ignore-not-found=true
+    EOT
+  }
 }
+

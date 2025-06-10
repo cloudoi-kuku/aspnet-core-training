@@ -1,10 +1,10 @@
 # Azure Configuration
-subscription_id = "your-azure-subscription-id"
-tenant_id       = "your-azure-tenant-id"
+subscription_id = "xxxxxxxx"
+tenant_id       = "xxxxxxxx"
 
 # Resource Configuration
 resource_group_name = "ecommerce-microservices-rg"
-location            = "East US"
+location            = "West US 2"
 environment         = "production"
 project_name        = "ecommerce"
 

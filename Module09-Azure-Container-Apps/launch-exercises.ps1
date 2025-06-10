@@ -451,7 +451,7 @@ Write-Host "Resource providers registered successfully!" -ForegroundColor Green
 
 # Create resource group
 Write-Host "Creating resource group..." -ForegroundColor Yellow
-az group create --name $RESOURCE_GROUP --location $LOCATION
+az group create --name $RESOURCE_GROUP --location $LOCATION --tags "enablon:contact=$STUDENT_ID@example.com" "enablon:owner=Environmental" "enablon:client=Enablon Internal" "enablon:cost_center=Environmental"
 
 # Create Container Registry
 Write-Host "Creating Container Registry..." -ForegroundColor Yellow
@@ -728,7 +728,7 @@ Write-Host "Resource providers registered successfully!" -ForegroundColor Green
 # Create resource group
 Write-Host "Creating resource group for Student: $STUDENT_ID..." -ForegroundColor Yellow
 Write-Host "Resource Group Name: $ResourceGroupName" -ForegroundColor Cyan
-az group create --name $ResourceGroupName --location $Location
+az group create --name $ResourceGroupName --location $Location --tags "enablon:contact=$STUDENT_ID@example.com" "enablon:owner=Environmental" "enablon:client=Enablon Internal" "enablon:cost_center=Environmental"
 
 # Create Azure Container Registry
 Write-Host "Creating Azure Container Registry..." -ForegroundColor Yellow

@@ -69,7 +69,7 @@ create_terraform_backend() {
     print_color $YELLOW "Creating Terraform backend storage..."
     
     BACKEND_RG="terraform-state-rg"
-    BACKEND_STORAGE="tfstateecommerce"
+    BACKEND_STORAGE="tfstateecommerce33"
     BACKEND_CONTAINER="tfstate"
     
     # Check if resource group exists
