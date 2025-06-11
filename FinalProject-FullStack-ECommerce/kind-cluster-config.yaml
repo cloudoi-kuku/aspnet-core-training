@@ -53,7 +53,7 @@ nodes:
         hostPort: 80
         protocol: TCP
       - containerPort: 443
-        hostPort: 443
+        hostPort: 30001
         protocol: TCP
 
   # Worker node 1 - for application workloads

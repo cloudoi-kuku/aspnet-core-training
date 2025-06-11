@@ -1,0 +1,6 @@
+apiVersion: v2
+name: simple-microservices
+description: A simple microservices demo with 3 services
+type: application
+version: 0.1.0
+appVersion: "1.0"

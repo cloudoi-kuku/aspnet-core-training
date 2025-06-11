@@ -1,0 +1,35 @@
+# Simple Microservices Demo Values
+
+# Product Service
+productService:
+  enabled: true
+  image: nginx:alpine
+  port: 80
+  replicas: 1
+
+# Order Service  
+orderService:
+  enabled: true
+  image: nginx:alpine
+  port: 80
+  replicas: 1
+
+# Payment Service
+paymentService:
+  enabled: true
+  image: nginx:alpine
+  port: 80
+  replicas: 1
+
+# Gateway (Frontend)
+gateway:
+  enabled: true
+  image: nginx:alpine
+  port: 80
+  replicas: 1
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: microservices.local

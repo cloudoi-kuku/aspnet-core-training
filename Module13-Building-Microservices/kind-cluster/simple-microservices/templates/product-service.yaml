@@ -1,0 +1,69 @@
+{{- if .Values.productService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+    service: product
+spec:
+  replicas: {{ .Values.productService.replicas }}
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+        service: product
+    spec:
+      containers:
+      - name: product-service
+        image: {{ .Values.productService.image }}
+        ports:
+        - containerPort: {{ .Values.productService.port }}
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: product-service-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  labels:
+    app: product-service
+spec:
+  selector:
+    app: product-service
+  ports:
+  - port: 80
+    targetPort: {{ .Values.productService.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-service-html
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>Product Service</title></head>
+    <body style="font-family: Arial; text-align: center; padding: 50px;">
+      <h1>🛍️ Product Service</h1>
+      <p>Port: 80 | Service: Products</p>
+      <div style="background: #e8f5e8; padding: 20px; margin: 20px; border-radius: 10px;">
+        <h3>Available Products:</h3>
+        <ul style="list-style: none;">
+          <li>📱 iPhone - $999</li>
+          <li>💻 MacBook - $1299</li>
+          <li>⌚ Apple Watch - $399</li>
+        </ul>
+      </div>
+      <p><strong>Microservice #1</strong></p>
+    </body>
+    </html>
+{{- end }}

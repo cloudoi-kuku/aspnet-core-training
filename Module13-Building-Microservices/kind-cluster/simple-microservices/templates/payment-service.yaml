@@ -1,0 +1,69 @@
+{{- if .Values.paymentService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+    service: payment
+spec:
+  replicas: {{ .Values.paymentService.replicas }}
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        service: payment
+    spec:
+      containers:
+      - name: payment-service
+        image: {{ .Values.paymentService.image }}
+        ports:
+        - containerPort: {{ .Values.paymentService.port }}
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: payment-service-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+spec:
+  selector:
+    app: payment-service
+  ports:
+  - port: 80
+    targetPort: {{ .Values.paymentService.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-html
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>Payment Service</title></head>
+    <body style="font-family: Arial; text-align: center; padding: 50px;">
+      <h1>💳 Payment Service</h1>
+      <p>Port: 80 | Service: Payments</p>
+      <div style="background: #fff0e8; padding: 20px; margin: 20px; border-radius: 10px;">
+        <h3>Payment Methods:</h3>
+        <ul style="list-style: none;">
+          <li>💳 Credit Card - Visa/MasterCard</li>
+          <li>📱 Apple Pay - Touch ID</li>
+          <li>🏦 Bank Transfer - ACH</li>
+        </ul>
+      </div>
+      <p><strong>Microservice #3</strong></p>
+    </body>
+    </html>
+{{- end }}

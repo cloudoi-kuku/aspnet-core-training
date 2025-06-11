@@ -1,0 +1,99 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  labels:
+    app: gateway
+    service: gateway
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+        service: gateway
+    spec:
+      containers:
+      - name: gateway
+        image: {{ .Values.gateway.image }}
+        ports:
+        - containerPort: {{ .Values.gateway.port }}
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: gateway-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+  labels:
+    app: gateway
+spec:
+  selector:
+    app: gateway
+  ports:
+  - port: 80
+    targetPort: {{ .Values.gateway.port }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-html
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>Microservices Demo</title></head>
+    <body style="font-family: Arial; text-align: center; padding: 30px;">
+      <h1>🏗️ Simple Microservices Architecture Demo</h1>
+      <p>Gateway Service - Port: 80</p>
+      
+      <div style="display: flex; justify-content: center; gap: 20px; margin: 30px;">
+        <div style="border: 2px solid #4CAF50; padding: 20px; border-radius: 10px; width: 200px;">
+          <h3>🛍️ Products</h3>
+          <button onclick="window.open('/products', '_blank')" 
+                  style="padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            View Products
+          </button>
+        </div>
+        
+        <div style="border: 2px solid #2196F3; padding: 20px; border-radius: 10px; width: 200px;">
+          <h3>📦 Orders</h3>
+          <button onclick="window.open('/orders', '_blank')" 
+                  style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            View Orders
+          </button>
+        </div>
+        
+        <div style="border: 2px solid #FF9800; padding: 20px; border-radius: 10px; width: 200px;">
+          <h3>💳 Payments</h3>
+          <button onclick="window.open('/payments', '_blank')" 
+                  style="padding: 10px 20px; background: #FF9800; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            View Payments
+          </button>
+        </div>
+      </div>
+      
+      <div style="background: #f5f5f5; padding: 20px; margin: 30px auto; max-width: 600px; border-radius: 10px;">
+        <h3>🎯 Architecture Overview</h3>
+        <p><strong>Gateway</strong> → Routes to 3 independent microservices</p>
+        <p>Each service runs separately and can be scaled independently</p>
+      </div>
+      
+      <div style="margin-top: 30px;">
+        <h4>🔍 Try This:</h4>
+        <p>1. Click each service button to see individual microservices</p>
+        <p>2. Run: <code>kubectl get pods</code> to see all services</p>
+        <p>3. Run: <code>kubectl scale deployment product-service --replicas=3</code></p>
+      </div>
+    </body>
+    </html>
+{{- end }}
