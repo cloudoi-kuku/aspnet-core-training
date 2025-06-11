@@ -1,0 +1,28 @@
+{{- range $service := list "productCatalog" "orderManagement" "userManagement" "notificationService" "apiGateway" "frontend" }}
+{{- $config := index $.Values $service }}
+{{- if $config.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $service | kebabcase }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $service | kebabcase }}
+    app.kubernetes.io/name: {{ $service | kebabcase }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: ecommerce
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+spec:
+  type: {{ $config.service.type }}
+  ports:
+    - port: {{ $config.service.port }}
+      targetPort: {{ $config.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ $service | kebabcase }}
+    app.kubernetes.io/name: {{ $service | kebabcase }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+{{- end }}
+{{- end }}

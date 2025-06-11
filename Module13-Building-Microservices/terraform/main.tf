@@ -11,10 +11,10 @@ terraform {
       source  = "hashicorp/azuread"
       version = "~> 2.45.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23.0"
-    }
+    # kubernetes = {
+    #   source  = "hashicorp/kubernetes"
+    #   version = "~> 2.23.0"
+    # }
     helm = {
       source  = "hashicorp/helm"
       version = "~> 2.11.0"
@@ -39,7 +39,6 @@ terraform {
 
 # Configure Azure Provider
 provider "azurerm" {
-  skip_provider_registration = true
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
@@ -47,13 +46,14 @@ provider "azurerm" {
   }
 }
 
-# Configure Kubernetes Provider
-provider "kubernetes" {
-  host                   = azurerm_kubernetes_cluster.main.kube_admin_config.0.host
-  client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.client_certificate)
-  client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.client_key)
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.cluster_ca_certificate)
-}
+# Configure Kubernetes Provider - Commented out to avoid connection issues during initial deployment
+# Applications will be deployed using Helm after infrastructure is ready
+# provider "kubernetes" {
+#   host                   = azurerm_kubernetes_cluster.main.kube_admin_config.0.host
+#   client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.client_certificate)
+#   client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.client_key)
+#   cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.cluster_ca_certificate)
+# }
 
 # Note: Helm provider removed - using direct helm commands in deployment scripts instead
 
@@ -193,13 +193,9 @@ resource "azurerm_kubernetes_cluster" "main" {
   
   default_node_pool {
     name           = "systempool"
-    node_count     = 2
-    vm_size        = "Standard_D2s_v3"
+    vm_size        = "Standard_B2s"
+    node_count     = 1
     vnet_subnet_id = azurerm_subnet.aks.id
-    
-    enable_auto_scaling  = true
-    min_count            = 2
-    max_count            = 5
     
     node_labels = {
       "nodepool-type" = "system"
@@ -226,10 +222,12 @@ resource "azurerm_kubernetes_cluster" "main" {
     log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   }
   
-  azure_active_directory_role_based_access_control {
-    managed                = true
-    azure_rbac_enabled     = true
-  }
+  # Azure AD RBAC - Simplified for testing
+  # azure_active_directory_role_based_access_control {
+  #   managed                = true
+  #   azure_rbac_enabled     = true
+  #   admin_group_object_ids = [data.azurerm_client_config.current.object_id]
+  # }
   
   tags = azurerm_resource_group.main.tags
 }
@@ -241,10 +239,6 @@ resource "azurerm_kubernetes_cluster_node_pool" "apps" {
   vm_size               = "Standard_B2s"
   node_count            = 1
   vnet_subnet_id        = azurerm_subnet.aks.id
-  
-  enable_auto_scaling  = true
-  min_count            = 1
-  max_count            = 3
   
   node_labels = {
     "nodepool-type" = "user"
@@ -283,7 +277,7 @@ resource "azurerm_mssql_database" "product_catalog" {
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
   max_size_gb    = 2
-  sku_name       = "S1"
+  sku_name       = "Basic"
   zone_redundant = false
   
   tags = azurerm_resource_group.main.tags
@@ -294,7 +288,7 @@ resource "azurerm_mssql_database" "order_management" {
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
   max_size_gb    = 2
-  sku_name       = "S1"
+  sku_name       = "Basic"
   zone_redundant = false
   
   tags = azurerm_resource_group.main.tags
@@ -305,7 +299,7 @@ resource "azurerm_mssql_database" "user_management" {
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
   max_size_gb    = 2
-  sku_name       = "S1"
+  sku_name       = "Basic"
   zone_redundant = false
   
   tags = azurerm_resource_group.main.tags

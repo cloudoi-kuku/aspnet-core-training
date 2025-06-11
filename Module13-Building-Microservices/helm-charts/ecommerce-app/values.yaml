@@ -1,0 +1,196 @@
+# Default values for ecommerce-app
+global:
+  imageRegistry: ecommerceacr2ngb.azurecr.io
+  imagePullSecrets:
+    - name: acr-secret
+  
+# Product Catalog Service
+productCatalog:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: product-catalog-api
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Production"
+    - name: ConnectionStrings__DefaultConnection
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: SqlConnectionString
+    - name: ServiceBus__ConnectionString
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: ServiceBusConnectionString
+
+# Order Management Service
+orderManagement:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: order-management-api
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# User Management Service
+userManagement:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: user-management-api
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+# Notification Service
+notificationService:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: notification-service
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# API Gateway
+apiGateway:
+  enabled: true
+  replicaCount: 3
+  image:
+    repository: api-gateway
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Frontend Application
+frontend:
+  enabled: true
+  replicaCount: 2
+  image:
+    repository: frontend-app
+    tag: "v1.0.0"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: ecommerce.local
+      paths:
+        - path: /
+          pathType: Prefix
+          service: frontend
+        - path: /api
+          pathType: Prefix
+          service: api-gateway
+  tls:
+    - secretName: ecommerce-tls
+      hosts:
+        - ecommerce.local
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network Policies
+networkPolicies:
+  enabled: false  # Set to true if you want network isolation
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring

@@ -189,102 +189,103 @@
 #   }
 # }
 
-# Apply Kubernetes manifests using kubectl after cluster is ready
-resource "null_resource" "apply_manifests" {
-  depends_on = [
-    azurerm_kubernetes_cluster.main
-  ]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      # Get AKS credentials
-      az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_kubernetes_cluster.main.name} --overwrite-existing
-
-      # Apply Secret Provider Class
-      kubectl apply -f - <<EOF
-apiVersion: secrets-store.csi.x-k8s.io/v1
-kind: SecretProviderClass
-metadata:
-  name: azure-keyvault-secrets
-  namespace: ecommerce-apps
-spec:
-  provider: azure
-  parameters:
-    usePodIdentity: "false"
-    useVMManagedIdentity: "true"
-    userAssignedIdentityID: ${azurerm_kubernetes_cluster.main.kubelet_identity[0].client_id}
-    keyvaultName: ${azurerm_key_vault.main.name}
-    tenantId: ${data.azurerm_client_config.current.tenant_id}
-    objects: |
-      array:
-        - |
-          objectName: sql-connection-string
-          objectType: secret
-        - |
-          objectName: servicebus-connection-string
-          objectType: secret
-        - |
-          objectName: appinsights-instrumentation-key
-          objectType: secret
-  secretObjects:
-  - secretName: app-secrets
-    type: Opaque
-    data:
-    - objectName: sql-connection-string
-      key: SqlConnectionString
-    - objectName: servicebus-connection-string
-      key: ServiceBusConnectionString
-    - objectName: appinsights-instrumentation-key
-      key: AppInsightsKey
-EOF
-
-      # Apply Let's Encrypt ClusterIssuer
-      kubectl apply -f - <<EOF
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: admin@${var.project_name}.com
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-    - http01:
-        ingress:
-          class: nginx
-EOF
-
-      # Apply Service Monitor
-      kubectl apply -f - <<EOF
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
-metadata:
-  name: ecommerce-apps
-  namespace: ecommerce-apps
-  labels:
-    release: prometheus-stack
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/part-of: ecommerce
-  endpoints:
-  - port: metrics
-    interval: 30s
-    path: /metrics
-EOF
-    EOT
-  }
-
-  # Cleanup on destroy
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<-EOT
-      kubectl delete secretproviderclass azure-keyvault-secrets -n ecommerce-apps --ignore-not-found=true
-      kubectl delete clusterissuer letsencrypt-prod --ignore-not-found=true
-      kubectl delete servicemonitor ecommerce-apps -n ecommerce-apps --ignore-not-found=true
-    EOT
-  }
-}
+# Apply Kubernetes manifests using kubectl after cluster is ready - COMMENTED OUT
+# This will be handled by the Helm deployment script instead
+# resource "null_resource" "apply_manifests" {
+#   depends_on = [
+#     azurerm_kubernetes_cluster.main
+#   ]
+#
+#   provisioner "local-exec" {
+#     command = <<-EOT
+#       # Get AKS credentials
+#       az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_kubernetes_cluster.main.name} --overwrite-existing
+#
+#       # Apply Secret Provider Class
+#       kubectl apply -f - <<EOF
+# apiVersion: secrets-store.csi.x-k8s.io/v1
+# kind: SecretProviderClass
+# metadata:
+#   name: azure-keyvault-secrets
+#   namespace: ecommerce-apps
+# spec:
+#   provider: azure
+#   parameters:
+#     usePodIdentity: "false"
+#     useVMManagedIdentity: "true"
+#     userAssignedIdentityID: ${azurerm_kubernetes_cluster.main.kubelet_identity[0].client_id}
+#     keyvaultName: ${azurerm_key_vault.main.name}
+#     tenantId: ${data.azurerm_client_config.current.tenant_id}
+#     objects: |
+#       array:
+#         - |
+#           objectName: sql-connection-string
+#           objectType: secret
+#         - |
+#           objectName: servicebus-connection-string
+#           objectType: secret
+#         - |
+#           objectName: appinsights-instrumentation-key
+#           objectType: secret
+#   secretObjects:
+#   - secretName: app-secrets
+#     type: Opaque
+#     data:
+#     - objectName: sql-connection-string
+#       key: SqlConnectionString
+#     - objectName: servicebus-connection-string
+#       key: ServiceBusConnectionString
+#     - objectName: appinsights-instrumentation-key
+#       key: AppInsightsKey
+# EOF
+#
+#       # Apply Let's Encrypt ClusterIssuer
+#       kubectl apply -f - <<EOF
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-prod
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: admin@${var.project_name}.com
+#     privateKeySecretRef:
+#       name: letsencrypt-prod
+#     solvers:
+#     - http01:
+#         ingress:
+#           class: nginx
+# EOF
+#
+#       # Apply Service Monitor
+#       kubectl apply -f - <<EOF
+# apiVersion: monitoring.coreos.com/v1
+# kind: ServiceMonitor
+# metadata:
+#   name: ecommerce-apps
+#   namespace: ecommerce-apps
+#   labels:
+#     release: prometheus-stack
+# spec:
+#   selector:
+#     matchLabels:
+#       app.kubernetes.io/part-of: ecommerce
+#   endpoints:
+#   - port: metrics
+#     interval: 30s
+#     path: /metrics
+# EOF
+#     EOT
+#   }
+#
+#   # Cleanup on destroy
+#   provisioner "local-exec" {
+#     when    = destroy
+#     command = <<-EOT
+#       kubectl delete secretproviderclass azure-keyvault-secrets -n ecommerce-apps --ignore-not-found=true
+#       kubectl delete clusterissuer letsencrypt-prod --ignore-not-found=true
+#       kubectl delete servicemonitor ecommerce-apps -n ecommerce-apps --ignore-not-found=true
+#     EOT
+#   }
+# }
 

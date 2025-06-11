@@ -1,0 +1,63 @@
+{{- range $service := list "productCatalog" "orderManagement" "userManagement" "notificationService" "apiGateway" "frontend" }}
+{{- $config := index $.Values $service }}
+{{- if $config.enabled }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $service | kebabcase }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app: {{ $service | kebabcase }}
+    app.kubernetes.io/name: {{ $service | kebabcase }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: ecommerce
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+spec:
+  replicas: {{ $config.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ $service | kebabcase }}
+      app.kubernetes.io/name: {{ $service | kebabcase }}
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $service | kebabcase }}
+        app.kubernetes.io/name: {{ $service | kebabcase }}
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/part-of: ecommerce
+    spec:
+      {{- if $.Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml $.Values.global.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $service | kebabcase }}
+          image: "{{ $.Values.global.imageRegistry }}/{{ $config.image.repository }}:{{ $config.image.tag }}"
+          imagePullPolicy: {{ $config.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $config.service.targetPort }}
+              protocol: TCP
+          {{- if $config.env }}
+          env:
+            {{- toYaml $config.env | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml $config.resources | nindent 12 }}
+      restartPolicy: Always
+{{- end }}
+{{- end }}

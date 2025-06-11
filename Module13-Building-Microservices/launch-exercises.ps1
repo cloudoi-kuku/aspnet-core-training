@@ -79,7 +79,7 @@ function Show-LearningObjectives {
             Write-Host "Azure concepts:" -ForegroundColor Yellow
             Write-Host "  • Azure Container Apps fundamentals"
             Write-Host "  • Resource naming with Student ID"
-            Write-Host "  • Cost estimation (~$30/month)"
+            Write-Host "  • Cost estimation (~`$30/month)"
             Write-Host "  • Cloud-native design principles"
         }
         "exercise02" {
@@ -389,7 +389,26 @@ if (-not $account) {
 
 Write-Host "Creating resource group for Student: $STUDENT_ID..." -ForegroundColor Yellow
 Write-Host "Resource Group Name: $RESOURCE_GROUP" -ForegroundColor Cyan
-az group create --name $RESOURCE_GROUP --location $LOCATION --tags Environment=Training Project=Microservices Module=Module13 StudentID=$STUDENT_ID CreatedBy=TrainingScript
+
+# Prompt for required tags
+Write-Host ""
+Write-Host "Your organization requires specific tags for Azure resources." -ForegroundColor Yellow
+Write-Host "Please provide the following information:" -ForegroundColor Cyan
+
+$COST_CENTER = Read-Host "Cost Center (e.g., IT-Training)"
+$OWNER = Read-Host "Owner Name (e.g., John Doe)"
+$CONTACT = Read-Host "Contact Email (e.g., john.doe@company.com)"
+
+az group create --name $RESOURCE_GROUP --location $LOCATION --tags `
+    "enablon:client=Enablon Internal" `
+    "enablon:cost_center=$COST_CENTER" `
+    "enablon:owner=$OWNER" `
+    "enablon:contact=$CONTACT" `
+    Environment=Training `
+    Project=Microservices `
+    Module=Module13 `
+    StudentID=$STUDENT_ID `
+    CreatedBy=TrainingScript
 
 Write-Host "Creating Container Registry..." -ForegroundColor Yellow
 az acr create `
@@ -451,13 +470,18 @@ $config = @"
 `$PRODUCT_DB_CONNECTION="Server=tcp:${SQL_SERVER}.database.windows.net,1433;Database=ProductDb;User ID=${SQL_ADMIN};Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;"
 `$ORDER_DB_CONNECTION="Server=tcp:${SQL_SERVER}.database.windows.net,1433;Database=OrderDb;User ID=${SQL_ADMIN};Password=${SQL_PASSWORD};Encrypt=True;TrustServerCertificate=False;"
 `$APP_INSIGHTS_CONNECTION="InstrumentationKey=${INSTRUMENTATION_KEY}"
+
+# Required Tags
+`$COST_CENTER="$COST_CENTER"
+`$OWNER="$OWNER"
+`$CONTACT="$CONTACT"
 "@
 
 $config | Out-File -FilePath "azure-config.ps1"
 
 Write-Host "\n✅ Setup complete!" -ForegroundColor Green
 Write-Host "Configuration saved to azure-config.ps1" -ForegroundColor Cyan
-Write-Host "\nEstimated monthly cost: ~$30 (minimal usage)" -ForegroundColor Yellow
+Write-Host "\nEstimated monthly cost: ~`$30 (minimal usage)" -ForegroundColor Yellow
 '@ -Description "Azure resource setup script for microservices"
         
         # Create cost estimation
@@ -472,7 +496,7 @@ Write-Host "\nEstimated monthly cost: ~$30 (minimal usage)" -ForegroundColor Yel
 | Azure SQL | Basic tier, 2 databases | ~$10 |
 | Container Registry | Basic tier | ~$5 |
 | Application Insights | Basic ingestion | ~$5 |
-| **Total** | | **~$30/month** |
+| **Total** | | **~`$30/month** |
 
 ## Free Tier Benefits
 - First 180,000 vCPU-seconds free
@@ -883,7 +907,7 @@ For this training, use **Azure Container Apps** (from exercises 1-4) which provi
 - Serverless experience
 - Built-in scaling
 - Lower complexity
-- ~$30/month cost
+- ~`$30/month cost
 '@ -Description "Deployment options comparison guide"
         
         # Create Terraform setup for Option A
