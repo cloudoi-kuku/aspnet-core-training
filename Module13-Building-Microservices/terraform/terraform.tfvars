@@ -1,6 +1,6 @@
 # Azure Configuration
-subscription_id = "6ef4cfbf-ca8b-4dec-a933-1c01a35638d5"
-tenant_id       = "6e2539b6-60db-4a7c-84cc-55377cfc71d3"
+subscription_id = "vvv"
+tenant_id       = "xxx"
 
 
 # Resource Configuration
