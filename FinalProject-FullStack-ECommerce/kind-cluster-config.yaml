@@ -30,15 +30,15 @@ nodes:
     extraPortMappings:
       # Frontend port mapping
       - containerPort: 30000
-        hostPort: 3000
+        hostPort: 5174
         protocol: TCP
       # Backend API port mapping  
       - containerPort: 30001
-        hostPort: 5050
+        hostPort: 5170
         protocol: TCP
       # Redis port mapping
       - containerPort: 30002
-        hostPort: 6379
+        hostPort: 5172
         protocol: TCP
       # RabbitMQ Management UI
       - containerPort: 30003
