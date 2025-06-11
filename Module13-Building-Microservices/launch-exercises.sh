@@ -370,7 +370,7 @@ if ! az account show &> /dev/null; then
 fi
 
 echo "Creating resource group..."
-az group create --name $RESOURCE_GROUP --location $LOCATION
+az group create --name $RESOURCE_GROUP --location $LOCATION --tags Environment=Training Project=Microservices Module=Module13 StudentID=$STUDENT_ID CreatedBy=TrainingScript
 
 echo "Creating Container Registry..."
 az acr create \

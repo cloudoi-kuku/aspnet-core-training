@@ -1,9 +1,10 @@
 # Azure Configuration
-subscription_id = "xxxxxxxx"
-tenant_id       = "xxxxxxxx"
+subscription_id = "6ef4cfbf-ca8b-4dec-a933-1c01a35638d5"
+tenant_id       = "6e2539b6-60db-4a7c-84cc-55377cfc71d3"
+
 
 # Resource Configuration
-resource_group_name = "ecommerce-microservices-rg"
+resource_group_name = "bisiecommerce-microservices-rg"
 location            = "West US 2"
 environment         = "production"
 project_name        = "ecommerce"
@@ -17,7 +18,7 @@ subnet_prefixes = {
 }
 
 # AKS Configuration
-kubernetes_version  = "1.28.3"
+kubernetes_version  = "1.30.12"
 enable_auto_scaling = true
 
 # Database Configuration
@@ -43,11 +44,15 @@ enable_backup        = true
 
 # Tags
 common_tags = {
-  ManagedBy   = "Terraform"
-  Environment = "Production"
-  Project     = "ECommerce-Microservices"
-  CostCenter  = "IT"
-  Owner       = "DevOps Team"
+  ManagedBy                 = "Terraform"
+  Environment              = "Production"
+  Project                  = "ECommerce-Microservices"
+  CostCenter               = "IT"
+  Owner                    = "DevOps Team"
+  "enablon:contact"        = "your email"
+  "enablon:owner"          = "Environmental"
+  "enablon:client"         = "Enablon Internal"
+  "enablon:cost_center"    = "Environmental"
 }
 
 # Microservices Configuration

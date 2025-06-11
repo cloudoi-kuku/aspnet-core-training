@@ -1,14 +1,16 @@
-# Module 13: Building Microservices with Azure
+# Module 13: Building Microservices with Azure AKS
 
 ## 🎯 Learning Objectives
 
 By the end of this module, you will be able to:
 
 - ✅ **Understand Microservices Architecture**: Learn what microservices are and when to use them
-- ✅ **Build Cloud-Native Services**: Create services designed for Azure Container Apps
-- ✅ **Deploy to Azure Container Apps**: Deploy microservices without managing infrastructure
-- ✅ **Implement Service Communication**: Use Azure Service Bus for messaging
-- ✅ **Leverage Azure Services**: Use Azure SQL, Key Vault, and Application Insights
+- ✅ **Build Cloud-Native Services**: Create services designed for Azure AKS
+- ✅ **Deploy to Azure AKS**: Deploy microservices using Terraform and Helm
+- ✅ **Implement Service Communication**: Use Redis and RabbitMQ for messaging
+- ✅ **Leverage Azure Services**: Use Azure AKS, Key Vault, and Application Insights
+- ✅ **Infrastructure as Code**: Use Terraform for Azure resource provisioning
+- ✅ **Container Orchestration**: Deploy with Kubernetes and Helm charts
 
 ## 📚 Module Overview
 
@@ -20,11 +22,12 @@ By the end of this module, you will be able to:
 - Azure CLI installed
 - Basic understanding of cloud concepts
 
-**Azure-First Approach**: 
-1. Understand microservices in the cloud context
-2. Build services designed for Azure
-3. Deploy directly to Azure Container Apps
-4. Use Azure services for communication and data
+**Azure AKS Approach**:
+1. Understand microservices in the Kubernetes context
+2. Build services designed for containerized deployment
+3. Deploy to Azure AKS using Terraform and Helm
+4. Use cloud-native services for communication and data
+5. Implement comprehensive monitoring and observability
 
 ## 🏗️ What Are Microservices?
 
@@ -132,27 +135,34 @@ Microservices architecture is a design approach where applications are built as 
 ```
 Module13-Building-Microservices/
 ├── README.md (this file)
-├── Exercises/
-│   ├── Exercise01-Azure-Setup.md
-│   ├── Exercise02-Building-Azure-Services.md
-│   ├── Exercise03-Deploy-Container-Apps.md
-│   ├── Exercise04-Azure-Communication.md
-│   └── Exercise05-Production-Features.md
-├── Resources/
-│   ├── azure-container-apps-guide.md
-│   ├── azure-services-overview.md
-│   ├── cost-optimization.md
-│   └── monitoring-guide.md
-├── SourceCode/
-│   └── AzureECommerce/
-│       ├── ProductService/
-│       ├── OrderService/
-│       ├── deploy-scripts/
-│       └── README.md
-└── Templates/
-    ├── azure-deploy.sh
-    ├── container-app-config.yaml
-    └── bicep-templates/
+└── terraform/                          # Main deployment directory
+    ├── src/                            # Application source code
+    │   ├── frontend/                   # Next.js React app
+    │   │   ├── components/
+    │   │   ├── pages/
+    │   │   ├── lib/
+    │   │   ├── Dockerfile
+    │   │   └── package.json
+    │   └── backend/                    # .NET 8 API
+    │       └── ECommerce.API/
+    │           ├── Controllers/
+    │           ├── Models/
+    │           ├── Services/
+    │           ├── Dockerfile
+    │           └── ECommerce.API.csproj
+    ├── helm-charts/                    # Helm deployment charts
+    │   ├── ecommerce-app/             # Main application chart
+    │   └── azure-values.yaml          # Azure-specific values
+    ├── main.tf                        # Terraform main configuration
+    ├── kubernetes.tf                  # Kubernetes resources
+    ├── variables.tf                   # Terraform variables
+    ├── docker-compose.yml             # Local development
+    ├── setup-module13.ps1             # Complete setup script
+    ├── build-images.ps1               # Docker image builder
+    ├── deploy-with-helm.ps1            # Azure AKS deployment
+    ├── setup-monitoring.ps1           # Monitoring setup
+    ├── cleanup.ps1                    # Cleanup script
+    └── DEPLOYMENT-GUIDE.md            # Detailed deployment guide
 ```
 
 ## 🎯 Real-World Scenario
@@ -229,35 +239,75 @@ az --version # Should be 2.50+
 
 ## 🚀 Quick Start
 
-### Prerequisites Check:
-```bash
-# Check Azure CLI
-az --version
+### Prerequisites
 
-# Login to Azure
-az login
+- **Windows** with PowerShell 5.1+
+- **Docker Desktop** for Windows
+- **.NET 8 SDK**
+- **Node.js 18+**
+- **Azure CLI**
+- **kubectl**
+- **Helm 3.x**
+- **Terraform**
 
-# Set your subscription
-az account set --subscription "YOUR_SUBSCRIPTION_ID"
-```
+### Setup and Deploy
 
-### Quick Deploy:
-1. **Run the setup script**:
-   ```bash
-   cd Module13-Building-Microservices
-   ./setup-azure-resources.sh
+1. **Navigate to terraform directory**:
+   ```powershell
+   cd Module13-Building-Microservices/terraform
    ```
 
-2. **Deploy your first service**:
-   ```bash
-   cd SourceCode/AzureECommerce
-   ./deploy-to-azure.sh
+2. **Run complete setup**:
+   ```powershell
+   .\setup-module13.ps1
    ```
 
-3. **Access your services**:
-   - Azure Portal: View your Container Apps
-   - Get URLs from deployment output
-   - Test with provided Postman collection
+3. **Deploy to Azure AKS**:
+   ```powershell
+   # Provision infrastructure
+   terraform init
+   terraform apply
+
+   # Connect to AKS
+   az aks get-credentials --resource-group ecommerce-microservices-rg --name ecommerce-aks-cluster
+
+   # Deploy applications
+   .\deploy-with-helm.ps1
+   ```
+
+4. **Access your services**:
+   - Frontend: http://ecommerce.azure.local
+   - Backend API: http://api.ecommerce.azure.local
+   - Grafana: http://grafana.ecommerce.azure.local
+
+## 🔌 Port Configuration
+
+All internal and external ports are configured to be consistent to prevent deployment issues:
+
+| Service | Internal Port | External Port | Metrics Port | Purpose |
+|---------|---------------|---------------|--------------|---------|
+| Frontend | 3000 | 3000 | 3000 | Next.js SSR App + Metrics |
+| Backend | 7000 | 7000 | 7001 | .NET API + Separate Metrics |
+| Redis | 6379 | 6379 | - | Cache & Session Store |
+| RabbitMQ | 5672 | 5672 | - | Message Queue |
+| Prometheus | 9090 | 9090 | - | Metrics Collection |
+| Grafana | 3000 | 80 | - | Monitoring Dashboard |
+
+**Port Validation**: Run `.\validate-ports.ps1` from the terraform directory to verify all port configurations are consistent.
+
+## 📚 Available Scripts
+
+All scripts are PowerShell (.ps1) and should be run from the `terraform/` directory:
+
+### Core Scripts
+- **`setup-module13.ps1`** - Complete project setup and local testing
+- **`build-images.ps1`** - Build Docker images for deployment
+- **`deploy-with-helm.ps1`** - Deploy to Azure AKS using Helm
+- **`cleanup.ps1`** - Remove all deployments and optionally destroy infrastructure
+
+### Specialized Scripts
+- **`setup-monitoring.ps1`** - Setup monitoring stack only
+- **`validate-ports.ps1`** - Validate port configurations across all files
 
 ## 🎓 Assessment Criteria
 

@@ -5,7 +5,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.70.0"
+      version = "~> 3.116.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
@@ -29,12 +29,12 @@ terraform {
     }
   }
   
-  backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstateecommerce33"
-    container_name       = "tfstate"
-    key                  = "ecommerce-microservices.tfstate"
-  }
+  # backend "azurerm" {
+  #   resource_group_name  = "terraform-state-rg"
+  #   storage_account_name = "tfstateecommerce33"
+  #   container_name       = "tfstate"
+  #   key                  = "ecommerce-microservices.tfstate"
+  # }
 }
 
 # Configure Azure Provider
@@ -49,21 +49,13 @@ provider "azurerm" {
 
 # Configure Kubernetes Provider
 provider "kubernetes" {
-  host                   = try(azurerm_kubernetes_cluster.main.kube_config.0.host, null)
-  client_certificate     = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate), null)
-  client_key             = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key), null)
-  cluster_ca_certificate = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate), null)
+  host                   = azurerm_kubernetes_cluster.main.kube_admin_config.0.host
+  client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.client_certificate)
+  client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.client_key)
+  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_admin_config.0.cluster_ca_certificate)
 }
 
-# Configure Helm Provider
-provider "helm" {
-  kubernetes {
-    host                   = try(azurerm_kubernetes_cluster.main.kube_config.0.host, null)
-    client_certificate     = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_certificate), null)
-    client_key             = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.client_key), null)
-    cluster_ca_certificate = try(base64decode(azurerm_kubernetes_cluster.main.kube_config.0.cluster_ca_certificate), null)
-  }
-}
+# Note: Helm provider removed - using direct helm commands in deployment scripts instead
 
 # Variables
 variable "resource_group_name" {
@@ -95,11 +87,10 @@ resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.location
   
-  tags = {
+  tags = merge(var.common_tags, {
     Environment = var.environment
     Project     = var.project_name
-    ManagedBy   = "Terraform"
-  }
+  })
 }
 
 # Virtual Network
@@ -158,6 +149,18 @@ resource "random_string" "acr_suffix" {
   upper   = false
 }
 
+resource "random_string" "sql_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
+resource "random_string" "servicebus_suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 # Log Analytics Workspace
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${var.project_name}-logs"
@@ -186,7 +189,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   dns_prefix          = "${var.project_name}-aks"
-  kubernetes_version  = "1.28.3"
+  kubernetes_version  = "1.30.12"
   
   default_node_pool {
     name           = "systempool"
@@ -235,13 +238,13 @@ resource "azurerm_kubernetes_cluster" "main" {
 resource "azurerm_kubernetes_cluster_node_pool" "apps" {
   name                  = "apps"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.main.id
-  vm_size               = "Standard_D4s_v3"
-  node_count            = 3
+  vm_size               = "Standard_B2s"
+  node_count            = 1
   vnet_subnet_id        = azurerm_subnet.aks.id
   
   enable_auto_scaling  = true
-  min_count            = 3
-  max_count            = 10
+  min_count            = 1
+  max_count            = 3
   
   node_labels = {
     "nodepool-type" = "user"
@@ -254,7 +257,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "apps" {
 
 # Azure SQL Server
 resource "azurerm_mssql_server" "main" {
-  name                         = "${var.project_name}-sqlserver"
+  name                         = "${var.project_name}-sqlserver-${random_string.sql_suffix.result}"
   resource_group_name          = azurerm_resource_group.main.name
   location                     = azurerm_resource_group.main.location
   version                      = "12.0"
@@ -279,7 +282,7 @@ resource "azurerm_mssql_database" "product_catalog" {
   name           = "ProductCatalogDB"
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
-  max_size_gb    = 32
+  max_size_gb    = 2
   sku_name       = "S1"
   zone_redundant = false
   
@@ -290,7 +293,7 @@ resource "azurerm_mssql_database" "order_management" {
   name           = "OrderManagementDB"
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
-  max_size_gb    = 32
+  max_size_gb    = 2
   sku_name       = "S1"
   zone_redundant = false
   
@@ -301,7 +304,7 @@ resource "azurerm_mssql_database" "user_management" {
   name           = "UserManagementDB"
   server_id      = azurerm_mssql_server.main.id
   collation      = "SQL_Latin1_General_CP1_CI_AS"
-  max_size_gb    = 32
+  max_size_gb    = 2
   sku_name       = "S1"
   zone_redundant = false
   
@@ -318,7 +321,7 @@ resource "azurerm_mssql_firewall_rule" "allow_azure_services" {
 
 # Azure Service Bus
 resource "azurerm_servicebus_namespace" "main" {
-  name                = "${var.project_name}-servicebus"
+  name                = "${var.project_name}-servicebus-${random_string.servicebus_suffix.result}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "Standard"

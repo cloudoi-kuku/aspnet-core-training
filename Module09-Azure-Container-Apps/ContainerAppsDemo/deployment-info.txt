@@ -1,0 +1,27 @@
+# Azure Container Apps Deployment Information
+Generated: 06/10/2025 16:03:39
+Student ID: cool
+
+## Resources Created
+- Resource Group: rg-containerappsdemo-cool
+- Container Registry: acrcadcool6249.azurecr.io
+- Container App: containerapp-cool
+- Environment: cae-cool-env
+
+## URLs
+- Application: https://containerapp-cool.redflower-8e181de9.eastus.azurecontainerapps.io
+- Health Check: https://containerapp-cool.redflower-8e181de9.eastus.azurecontainerapps.io/health
+- API Docs: https://containerapp-cool.redflower-8e181de9.eastus.azurecontainerapps.io/swagger
+
+## Management Commands
+# View application logs
+az containerapp logs show --name containerapp-cool --resource-group rg-containerappsdemo-cool --follow
+
+# Scale the application
+az containerapp update --name containerapp-cool --resource-group rg-containerappsdemo-cool --min-replicas 1 --max-replicas 5
+
+# Update the application
+az containerapp update --name containerapp-cool --resource-group rg-containerappsdemo-cool --image acrcadcool6249.azurecr.io/containerappsdemo:v2
+
+# Clean up resources
+az group delete --name rg-containerappsdemo-cool --yes --no-wait

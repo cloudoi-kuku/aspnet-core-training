@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ecommerce-backend:latest
+    container_name: ecommerce-backend
+    ports:
+      - "5050:5050"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:5050
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/ecommerce.db
+      - ConnectionStrings__Redis=redis:6379
+      - JwtSettings__SecretKey=your-super-secret-jwt-key-change-this-in-production
+      - JwtSettings__Issuer=ecommerce-api
+      - JwtSettings__Audience=ecommerce-app
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - redis
+    networks:
+      - ecommerce-network
+
+  frontend:
+    image: ecommerce-frontend:latest
+    container_name: ecommerce-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:5050
+    depends_on:
+      - backend
+    networks:
+      - ecommerce-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: bridge

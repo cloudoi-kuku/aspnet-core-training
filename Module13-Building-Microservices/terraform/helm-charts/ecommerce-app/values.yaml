@@ -1,0 +1,315 @@
+# Default values for ecommerce-app
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "managed-premium"  # Azure AKS managed premium storage
+
+# Frontend configuration (Next.js)
+frontend:
+  enabled: true
+  image:
+    repository: ecommerce-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 2
+  
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: ecommerce.azure.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ecommerce-frontend-tls
+        hosts:
+          - ecommerce.azure.local
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  env:
+    - name: NODE_ENV
+      value: "production"
+    - name: NEXT_PUBLIC_API_URL
+      value: "http://ecommerce-backend:7000"
+
+# Backend configuration (.NET 8 API)
+backend:
+  enabled: true
+  image:
+    repository: ecommerce-backend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  replicaCount: 3
+  
+  service:
+    type: ClusterIP
+    port: 7000
+    targetPort: 7000
+    metricsPort: 7001
+  
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: api.ecommerce.azure.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ecommerce-backend-tls
+        hosts:
+          - api.ecommerce.azure.local
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Production"
+    - name: ASPNETCORE_URLS
+      value: "http://+:7000"
+  
+  # Health checks
+  livenessProbe:
+    httpGet:
+      path: /api/health
+      port: 7000
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 7000
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# Database configuration (SQLite - using persistent volume)
+database:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: "managed-premium"
+    accessMode: ReadWriteOnce
+    size: 1Gi
+
+# Redis configuration
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+  replica:
+    replicaCount: 1
+    persistence:
+      enabled: false
+
+# RabbitMQ configuration
+rabbitmq:
+  enabled: true
+  auth:
+    username: "admin"
+    password: "admin123"
+  persistence:
+    enabled: false
+  service:
+    type: ClusterIP
+
+# Monitoring and observability
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 30s
+
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    retention: "15d"
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "managed-premium"
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Scrape configs for application metrics
+    additionalScrapeConfigs:
+      - job_name: 'ecommerce-frontend'
+        static_configs:
+          - targets: ['ecommerce-app-frontend:3000']
+        metrics_path: '/api/metrics'
+        scrape_interval: 30s
+
+      - job_name: 'ecommerce-backend'
+        static_configs:
+          - targets: ['ecommerce-app-backend:7001']
+        metrics_path: '/metrics'
+        scrape_interval: 30s
+
+  # Grafana configuration
+  grafana:
+    enabled: true
+    adminPassword: "admin123"
+
+    # Persistence for dashboards
+    persistence:
+      enabled: true
+      size: 1Gi
+
+    # Data sources
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: Prometheus
+            type: prometheus
+            url: http://prometheus-server:80
+            access: proxy
+            isDefault: true
+
+    # Pre-configured dashboards
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: 'default'
+            orgId: 1
+            folder: ''
+            type: file
+            disableDeletion: false
+            editable: true
+            options:
+              path: /var/lib/grafana/dashboards/default
+
+    # Dashboard configurations
+    dashboards:
+      default:
+        ecommerce-overview:
+          gnetId: 15757  # Node Exporter Full dashboard
+          revision: 37
+          datasource: Prometheus
+
+        kubernetes-cluster:
+          gnetId: 7249   # Kubernetes Cluster dashboard
+          revision: 1
+          datasource: Prometheus
+
+        dotnet-metrics:
+          gnetId: 10427  # .NET Core dashboard
+          revision: 2
+          datasource: Prometheus
+
+    # Grafana service configuration
+    service:
+      type: ClusterIP
+      port: 80
+
+    # Ingress for Grafana
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - grafana.ecommerce.azure.local
+      tls:
+        - secretName: grafana-tls
+          hosts:
+            - grafana.ecommerce.azure.local
+
+# Security
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: false
+
+# Autoscaling
+autoscaling:
+  frontend:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+  backend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 15
+    targetCPUUtilizationPercentage: 70
+
+# ConfigMaps and Secrets
+config:
+  # Application configuration
+  app:
+    name: "E-Commerce Platform"
+    version: "1.0.0"
+    environment: "production"
+  
+  # JWT configuration
+  jwt:
+    issuer: "ecommerce-api"
+    audience: "ecommerce-frontend"
+    # Secret key should be provided via external secret management
+    secretKey: "your-super-secret-jwt-key-change-this-in-production"
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network Policies
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+  egress:
+    enabled: true

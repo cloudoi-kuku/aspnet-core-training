@@ -53,7 +53,7 @@ echo ""
 
 # Create Resource Group
 echo "1️⃣ Creating Resource Group..."
-az group create --name $RESOURCE_GROUP --location $LOCATION --output table
+az group create --name $RESOURCE_GROUP --location $LOCATION --tags Environment=Training Project=Microservices Module=Module13 CreatedBy=TrainingScript --output table
 
 # Create Container Registry
 echo "2️⃣ Creating Azure Container Registry..."

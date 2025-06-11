@@ -1,0 +1,291 @@
+# Azure AKS specific values override for E-Commerce Application
+# This file contains Azure-optimized configurations
+
+# Global Azure configurations
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "managed-premium"
+
+# Frontend configuration optimized for Azure
+frontend:
+  enabled: true
+  replicaCount: 3  # Higher replica count for Azure
+  
+  image:
+    repository: ecommerce-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    hosts:
+      - host: ecommerce.azure.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ecommerce-frontend-tls
+        hosts:
+          - ecommerce.azure.local
+  
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Azure-specific node affinity
+  nodeSelector:
+    kubernetes.io/os: linux
+  
+  # Pod anti-affinity for better distribution
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - ecommerce-app-frontend
+          topologyKey: kubernetes.io/hostname
+
+# Backend configuration optimized for Azure
+backend:
+  enabled: true
+  replicaCount: 5  # Higher replica count for Azure
+  
+  image:
+    repository: ecommerce-backend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  
+  service:
+    type: ClusterIP
+    port: 7000
+    targetPort: 7000
+    metricsPort: 7001
+  
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    hosts:
+      - host: api.ecommerce.azure.local
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: ecommerce-backend-tls
+        hosts:
+          - api.ecommerce.azure.local
+  
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+  
+  # Azure-specific node affinity
+  nodeSelector:
+    kubernetes.io/os: linux
+  
+  # Pod anti-affinity for better distribution
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - ecommerce-app-backend
+          topologyKey: kubernetes.io/hostname
+
+# Database configuration with Azure Premium storage
+database:
+  enabled: true
+  persistence:
+    enabled: true
+    storageClass: "managed-premium"
+    accessMode: ReadWriteOnce
+    size: 5Gi  # Larger size for production
+
+# Redis configuration optimized for Azure
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: "redis-secure-password-123"
+  master:
+    persistence:
+      enabled: true
+      storageClass: "managed-premium"
+      size: 2Gi
+  replica:
+    replicaCount: 2
+    persistence:
+      enabled: true
+      storageClass: "managed-premium"
+      size: 2Gi
+
+# RabbitMQ configuration optimized for Azure
+rabbitmq:
+  enabled: true
+  auth:
+    username: "admin"
+    password: "rabbitmq-secure-password-123"
+  persistence:
+    enabled: true
+    storageClass: "managed-premium"
+    size: 3Gi
+  service:
+    type: ClusterIP
+  clustering:
+    enabled: true
+    replicaCount: 3
+
+# Monitoring configuration for Azure
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    namespace: monitoring
+    interval: 15s  # More frequent monitoring
+  
+  # Prometheus configuration for Azure
+  prometheus:
+    enabled: true
+    retention: "30d"  # Longer retention for production
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: "managed-premium"
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 100Gi  # Larger storage for production
+
+    # Scrape configs for application metrics
+    additionalScrapeConfigs:
+      - job_name: 'ecommerce-frontend'
+        static_configs:
+          - targets: ['ecommerce-app-frontend:3000']
+        metrics_path: '/api/metrics'
+        scrape_interval: 15s  # More frequent for production
+
+      - job_name: 'ecommerce-backend'
+        static_configs:
+          - targets: ['ecommerce-app-backend:7001']
+        metrics_path: '/metrics'
+        scrape_interval: 15s  # More frequent for production
+  
+  # Grafana configuration for Azure
+  grafana:
+    enabled: true
+    adminPassword: "grafana-secure-password-123"
+    
+    persistence:
+      enabled: true
+      storageClassName: "managed-premium"
+      size: 5Gi
+    
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      hosts:
+        - grafana.ecommerce.azure.local
+      tls:
+        - secretName: grafana-tls
+          hosts:
+            - grafana.ecommerce.azure.local
+
+# Security configurations
+security:
+  networkPolicies:
+    enabled: true
+  podSecurityPolicy:
+    enabled: false  # Deprecated in newer Kubernetes versions
+
+# Autoscaling optimized for Azure
+autoscaling:
+  frontend:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+  backend:
+    enabled: true
+    minReplicas: 5
+    maxReplicas: 30
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+
+# Pod Disruption Budget for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Service Account with Azure-specific annotations
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id: ""  # Add your Azure AD client ID if using Workload Identity
+  name: "ecommerce-service-account"
+
+# Network Policy for Azure
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+  egress:
+    enabled: true
+
+# Azure-specific environment variables
+config:
+  app:
+    name: "E-Commerce Platform"
+    version: "1.0.0"
+    environment: "production"
+  
+  jwt:
+    issuer: "ecommerce-api-azure"
+    audience: "ecommerce-frontend-azure"
+    secretKey: "azure-super-secure-jwt-key-change-this-in-production"
+
+# Azure Load Balancer specific annotations
+loadBalancer:
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-request-path: "/health"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-interval: "5"
+    service.beta.kubernetes.io/azure-load-balancer-health-probe-num-of-probe: "2"

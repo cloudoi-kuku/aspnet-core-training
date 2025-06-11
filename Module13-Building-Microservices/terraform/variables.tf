@@ -72,7 +72,7 @@ variable "subnet_prefixes" {
 # AKS Configuration
 variable "kubernetes_version" {
   type        = string
-  default     = "1.28.3"
+  default     = "1.30.12"
   description = "Kubernetes version for AKS"
 }
 
@@ -130,6 +130,10 @@ variable "common_tags" {
     Project     = "ECommerce-Microservices"
     CostCenter  = "IT"
     Owner       = "DevOps Team"
+    "enablon:contact"     = "your email"
+    "enablon:owner"       = "Environmental"
+    "enablon:client"      = "Enablon Internal"
+    "enablon:cost_center" = "Environmental"
   }
   description = "Common tags for all resources"
 }

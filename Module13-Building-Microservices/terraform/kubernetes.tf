@@ -1,268 +1,198 @@
 
-# Namespaces
-resource "kubernetes_namespace" "apps" {
-  metadata {
-    name = "ecommerce-apps"
-    labels = {
-      environment = var.environment
-      managed-by  = "terraform"
-    }
-  }
-}
+# Namespaces - Commented out to avoid provider connection issues
+# These will be created by the Helm deployment script instead
+# resource "kubernetes_namespace" "apps" {
+#   metadata {
+#     name = "ecommerce-apps"
+#     labels = {
+#       environment = var.environment
+#       managed-by  = "terraform"
+#     }
+#   }
+# }
 
-resource "kubernetes_namespace" "ingress" {
-  metadata {
-    name = "ingress-nginx"
-  }
-}
+# resource "kubernetes_namespace" "ingress" {
+#   metadata {
+#     name = "ingress-nginx"
+#   }
+# }
 
-resource "kubernetes_namespace" "monitoring" {
-  metadata {
-    name = "monitoring"
-  }
-}
+# resource "kubernetes_namespace" "monitoring" {
+#   metadata {
+#     name = "monitoring"
+#   }
+# }
 
-# Install NGINX Ingress Controller
-resource "helm_release" "nginx_ingress" {
-  name       = "nginx-ingress"
-  repository = "https://kubernetes.github.io/ingress-nginx"
-  chart      = "ingress-nginx"
-  namespace  = kubernetes_namespace.ingress.metadata[0].name
-  version    = "4.8.3"
-  
-  set {
-    name  = "controller.service.type"
-    value = "LoadBalancer"
-  }
-  
-  set {
-    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/azure-load-balancer-health-probe-request-path"
-    value = "/healthz"
-  }
-  
-  set {
-    name  = "controller.metrics.enabled"
-    value = "true"
-  }
-  
-  set {
-    name  = "controller.metrics.serviceMonitor.enabled"
-    value = "true"
-  }
-}
+# NGINX Ingress Controller - deployed via Helm script
+# See deploy-with-helm.sh for installation
 
-# Install Prometheus and Grafana
-resource "helm_release" "prometheus_stack" {
-  name       = "kube-prometheus-stack"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "kube-prometheus-stack"
-  namespace  = kubernetes_namespace.monitoring.metadata[0].name
-  version    = "54.0.0"
-  
-  values = [
-    file("${path.module}/helm-values/prometheus-values.yaml")
-  ]
-  
-  set {
-    name  = "grafana.adminPassword"
-    value = random_password.grafana_admin_password.result
-  }
-  
-  set {
-    name  = "prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.storageClassName"
-    value = "managed-premium"
-  }
-  
-  set {
-    name  = "prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage"
-    value = "50Gi"
-  }
-}
+# Prometheus and Grafana - deployed via Helm script
+# See deploy-with-helm.sh for installation
 
-resource "random_password" "grafana_admin_password" {
-  length  = 16
-  special = true
-}
+# Random password removed - using fixed password in Helm deployment script
 
-# ConfigMap for Application Configuration
-resource "kubernetes_config_map" "app_config" {
-  metadata {
-    name      = "app-config"
-    namespace = kubernetes_namespace.apps.metadata[0].name
-  }
-  
-  data = {
-    "appsettings.Production.json" = jsonencode({
-      ApplicationInsights = {
-        InstrumentationKey = azurerm_application_insights.main.instrumentation_key
-      }
-      ServiceBus = {
-        ConnectionString = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault.main.vault_uri}secrets/servicebus-connection-string/)"
-      }
-      SqlServer = {
-        Server = azurerm_mssql_server.main.fully_qualified_domain_name
-      }
-    })
-  }
-}
+# ConfigMap for Application Configuration - Commented out to avoid provider connection issues
+# This will be created by the Helm deployment script instead
+# resource "kubernetes_config_map" "app_config" {
+#   metadata {
+#     name      = "app-config"
+#     namespace = "ecommerce-apps"
+#   }
+#
+#   data = {
+#     "appsettings.Production.json" = jsonencode({
+#       ApplicationInsights = {
+#         InstrumentationKey = azurerm_application_insights.main.instrumentation_key
+#       }
+#       ServiceBus = {
+#         ConnectionString = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault.main.vault_uri}secrets/servicebus-connection-string/)"
+#       }
+#       SqlServer = {
+#         Server = azurerm_mssql_server.main.fully_qualified_domain_name
+#       }
+#     })
+#   }
+# }
 
 
 
-# Install Cert-Manager for TLS
-resource "helm_release" "cert_manager" {
-  name       = "cert-manager"
-  repository = "https://charts.jetstack.io"
-  chart      = "cert-manager"
-  namespace  = "cert-manager"
-  version    = "v1.13.2"
-  
-  create_namespace = true
-  
-  set {
-    name  = "installCRDs"
-    value = "true"
-  }
-  
-  set {
-    name  = "prometheus.enabled"
-    value = "true"
-  }
-}
+# Cert-Manager for TLS - deployed via Helm script
+# See deploy-with-helm.sh for installation
 
 
 
-# Horizontal Pod Autoscaler for services
-resource "kubernetes_horizontal_pod_autoscaler_v2" "product_catalog_hpa" {
-  metadata {
-    name      = "product-catalog-hpa"
-    namespace = kubernetes_namespace.apps.metadata[0].name
-  }
-  
-  spec {
-    scale_target_ref {
-      api_version = "apps/v1"
-      kind        = "Deployment"
-      name        = "product-catalog"
-    }
-    
-    min_replicas = 3
-    max_replicas = 10
-    
-    metric {
-      type = "Resource"
-      
-      resource {
-        name = "cpu"
-        target {
-          type                = "Utilization"
-          average_utilization = 70
-        }
-      }
-    }
-    
-    metric {
-      type = "Resource"
-      
-      resource {
-        name = "memory"
-        target {
-          type                = "Utilization"
-          average_utilization = 80
-        }
-      }
-    }
-    
-    behavior {
-      scale_up {
-        stabilization_window_seconds = 60
-        select_policy               = "Max"
-        
-        policy {
-          type          = "Percent"
-          value         = 100
-          period_seconds = 15
-        }
-      }
-      
-      scale_down {
-        stabilization_window_seconds = 300
-        select_policy               = "Min"
-        
-        policy {
-          type          = "Percent"
-          value         = 10
-          period_seconds = 60
-        }
-      }
-    }
-  }
-}
+# Horizontal Pod Autoscaler for services - Commented out to avoid provider connection issues
+# This will be created by the Helm deployment script instead
+# resource "kubernetes_horizontal_pod_autoscaler_v2" "product_catalog_hpa" {
+#   metadata {
+#     name      = "product-catalog-hpa"
+#     namespace = "ecommerce-apps"
+#   }
+#
+#   spec {
+#     scale_target_ref {
+#       api_version = "apps/v1"
+#       kind        = "Deployment"
+#       name        = "product-catalog"
+#     }
+#
+#     min_replicas = 3
+#     max_replicas = 10
+#
+#     metric {
+#       type = "Resource"
+#
+#       resource {
+#         name = "cpu"
+#         target {
+#           type                = "Utilization"
+#           average_utilization = 70
+#         }
+#       }
+#     }
+#
+#     metric {
+#       type = "Resource"
+#
+#       resource {
+#         name = "memory"
+#         target {
+#           type                = "Utilization"
+#           average_utilization = 80
+#         }
+#       }
+#     }
+#
+#     behavior {
+#       scale_up {
+#         stabilization_window_seconds = 60
+#         select_policy               = "Max"
+#
+#         policy {
+#           type          = "Percent"
+#           value         = 100
+#           period_seconds = 15
+#         }
+#       }
+#
+#       scale_down {
+#         stabilization_window_seconds = 300
+#         select_policy               = "Min"
+#
+#         policy {
+#           type          = "Percent"
+#           value         = 10
+#           period_seconds = 60
+#         }
+#       }
+#     }
+#   }
+# }
 
-# Pod Disruption Budget
-resource "kubernetes_pod_disruption_budget_v1" "product_catalog_pdb" {
-  metadata {
-    name      = "product-catalog-pdb"
-    namespace = kubernetes_namespace.apps.metadata[0].name
-  }
-  
-  spec {
-    min_available = 2
-    
-    selector {
-      match_labels = {
-        app = "product-catalog"
-      }
-    }
-  }
-}
+# Pod Disruption Budget - Commented out to avoid provider connection issues
+# This will be created by the Helm deployment script instead
+# resource "kubernetes_pod_disruption_budget_v1" "product_catalog_pdb" {
+#   metadata {
+#     name      = "product-catalog-pdb"
+#     namespace = "ecommerce-apps"
+#   }
+#
+#   spec {
+#     min_available = 2
+#
+#     selector {
+#       match_labels = {
+#         app = "product-catalog"
+#       }
+#     }
+#   }
+# }
 
-# Network Policies
-resource "kubernetes_network_policy" "default_deny" {
-  metadata {
-    name      = "default-deny"
-    namespace = kubernetes_namespace.apps.metadata[0].name
-  }
-  
-  spec {
-    pod_selector {}
-    policy_types = ["Ingress", "Egress"]
-  }
-}
+# Network Policies - Commented out to avoid provider connection issues
+# These will be created by the Helm deployment script instead
+# resource "kubernetes_network_policy" "default_deny" {
+#   metadata {
+#     name      = "default-deny"
+#     namespace = "ecommerce-apps"
+#   }
+#
+#   spec {
+#     pod_selector {}
+#     policy_types = ["Ingress", "Egress"]
+#   }
+# }
 
-resource "kubernetes_network_policy" "allow_ingress" {
-  metadata {
-    name      = "allow-from-ingress"
-    namespace = kubernetes_namespace.apps.metadata[0].name
-  }
-  
-  spec {
-    pod_selector {
-      match_labels = {
-        "app.kubernetes.io/part-of" = "ecommerce"
-      }
-    }
-    
-    policy_types = ["Ingress"]
-    
-    ingress {
-      from {
-        namespace_selector {
-          match_labels = {
-            name = kubernetes_namespace.ingress.metadata[0].name
-          }
-        }
-      }
-    }
-  }
-}
+# resource "kubernetes_network_policy" "allow_ingress" {
+#   metadata {
+#     name      = "allow-from-ingress"
+#     namespace = "ecommerce-apps"
+#   }
+#
+#   spec {
+#     pod_selector {
+#       match_labels = {
+#         "app.kubernetes.io/part-of" = "ecommerce"
+#       }
+#     }
+#
+#     policy_types = ["Ingress"]
+#
+#     ingress {
+#       from {
+#         namespace_selector {
+#           match_labels = {
+#             name = "ingress-nginx"
+#           }
+#         }
+#       }
+#     }
+#   }
+# }
 
 # Apply Kubernetes manifests using kubectl after cluster is ready
 resource "null_resource" "apply_manifests" {
   depends_on = [
-    azurerm_kubernetes_cluster.main,
-    helm_release.nginx_ingress,
-    helm_release.cert_manager,
-    helm_release.prometheus_stack
+    azurerm_kubernetes_cluster.main
   ]
 
   provisioner "local-exec" {
@@ -276,7 +206,7 @@ apiVersion: secrets-store.csi.x-k8s.io/v1
 kind: SecretProviderClass
 metadata:
   name: azure-keyvault-secrets
-  namespace: ${kubernetes_namespace.apps.metadata[0].name}
+  namespace: ecommerce-apps
 spec:
   provider: azure
   parameters:
@@ -332,9 +262,9 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: ecommerce-apps
-  namespace: ${kubernetes_namespace.apps.metadata[0].name}
+  namespace: ecommerce-apps
   labels:
-    release: ${helm_release.prometheus_stack.name}
+    release: prometheus-stack
 spec:
   selector:
     matchLabels:

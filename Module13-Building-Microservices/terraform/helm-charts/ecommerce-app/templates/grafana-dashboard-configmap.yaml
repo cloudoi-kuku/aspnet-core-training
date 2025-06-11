@@ -1,0 +1,181 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.grafana.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ecommerce-app.fullname" . }}-grafana-dashboard
+  labels:
+    {{- include "ecommerce-app.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  ecommerce-application-dashboard.json: |
+    {
+      "dashboard": {
+        "id": null,
+        "title": "E-Commerce Application Dashboard",
+        "tags": ["ecommerce", "application"],
+        "style": "dark",
+        "timezone": "browser",
+        "panels": [
+          {
+            "id": 1,
+            "title": "Application Overview",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "up{job=\"ecommerce-backend\"}",
+                "legendFormat": "Backend Status"
+              },
+              {
+                "expr": "up{job=\"ecommerce-frontend\"}",
+                "legendFormat": "Frontend Status"
+              }
+            ],
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "steps": [
+                    {"color": "red", "value": 0},
+                    {"color": "green", "value": 1}
+                  ]
+                }
+              }
+            },
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "id": 2,
+            "title": "HTTP Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"ecommerce-backend\"}[5m])",
+                "legendFormat": "Backend RPS"
+              },
+              {
+                "expr": "rate(http_requests_total{job=\"ecommerce-frontend\"}[5m])",
+                "legendFormat": "Frontend RPS"
+              }
+            ],
+            "yAxes": [
+              {"label": "Requests/sec", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "id": 3,
+            "title": "Response Time",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"ecommerce-backend\"}[5m]))",
+                "legendFormat": "Backend 95th percentile"
+              },
+              {
+                "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"ecommerce-backend\"}[5m]))",
+                "legendFormat": "Backend 50th percentile"
+              }
+            ],
+            "yAxes": [
+              {"label": "Seconds", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "id": 4,
+            "title": "Error Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(http_requests_total{job=\"ecommerce-backend\",status=~\"5..\"}[5m])",
+                "legendFormat": "Backend 5xx errors"
+              },
+              {
+                "expr": "rate(http_requests_total{job=\"ecommerce-backend\",status=~\"4..\"}[5m])",
+                "legendFormat": "Backend 4xx errors"
+              }
+            ],
+            "yAxes": [
+              {"label": "Errors/sec", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          },
+          {
+            "id": 5,
+            "title": "Database Connections",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "dotnet_collection_count_total{job=\"ecommerce-backend\"}",
+                "legendFormat": "Active Connections"
+              }
+            ],
+            "yAxes": [
+              {"label": "Connections", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+          },
+          {
+            "id": 6,
+            "title": "Memory Usage",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "process_working_set_bytes{job=\"ecommerce-backend\"} / 1024 / 1024",
+                "legendFormat": "Backend Memory (MB)"
+              },
+              {
+                "expr": "process_working_set_bytes{job=\"ecommerce-frontend\"} / 1024 / 1024",
+                "legendFormat": "Frontend Memory (MB)"
+              }
+            ],
+            "yAxes": [
+              {"label": "MB", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+          },
+          {
+            "id": 7,
+            "title": "Redis Operations",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(redis_commands_total[5m])",
+                "legendFormat": "Commands/sec"
+              }
+            ],
+            "yAxes": [
+              {"label": "Operations/sec", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+          },
+          {
+            "id": 8,
+            "title": "RabbitMQ Messages",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rabbitmq_queue_messages_ready",
+                "legendFormat": "Messages Ready"
+              },
+              {
+                "expr": "rabbitmq_queue_messages_unacknowledged",
+                "legendFormat": "Messages Unacked"
+              }
+            ],
+            "yAxes": [
+              {"label": "Messages", "min": 0}
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+          }
+        ],
+        "time": {
+          "from": "now-1h",
+          "to": "now"
+        },
+        "refresh": "30s"
+      }
+    }
+{{- end }}

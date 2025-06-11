@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ecommerce-app.fullname" . }}-config
+  labels:
+    {{- include "ecommerce-app.labels" . | nindent 4 }}
+data:
+  appsettings.Production.json: |
+    {
+      "Logging": {
+        "LogLevel": {
+          "Default": "Information",
+          "Microsoft.AspNetCore": "Warning"
+        }
+      },
+      "ConnectionStrings": {
+        "DefaultConnection": "Data Source={{ .Values.backend.database.path }};",
+        "Redis": "{{ .Values.redis.host }}:{{ .Values.redis.port }}"
+      },
+      "JwtSettings": {
+        "Issuer": "{{ .Values.backend.jwt.issuer }}",
+        "Audience": "{{ .Values.backend.jwt.audience }}",
+        "ExpiryDays": {{ .Values.backend.jwt.expiryDays }}
+      },
+      "AllowedHosts": "*",
+      "CorsOrigins": [
+        "http://{{ include "ecommerce-app.fullname" . }}-frontend:3000",
+        "http://localhost:3000"
+      ]
+    }

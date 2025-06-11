@@ -52,7 +52,7 @@ Write-Host ""
 
 # Create Resource Group
 Write-Host "1️⃣ Creating Resource Group..." -ForegroundColor Yellow
-az group create --name $RESOURCE_GROUP --location $LOCATION --output table
+az group create --name $RESOURCE_GROUP --location $LOCATION --tags Environment=Training Project=Microservices Module=Module13 CreatedBy=TrainingScript --output table
 
 # Create Container Registry
 Write-Host "2️⃣ Creating Azure Container Registry..." -ForegroundColor Yellow

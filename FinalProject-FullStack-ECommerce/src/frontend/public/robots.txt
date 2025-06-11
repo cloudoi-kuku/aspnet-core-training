@@ -1,0 +1,7 @@
+# Robots.txt for E-Commerce Platform
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://example.com/sitemap.xml
