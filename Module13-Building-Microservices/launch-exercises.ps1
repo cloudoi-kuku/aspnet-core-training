@@ -447,7 +447,12 @@ az monitor app-insights component create `
   --app $APP_INSIGHTS `
   --location $LOCATION `
   --resource-group $RESOURCE_GROUP `
-  --application-type web
+  --application-type web `
+  --tags `
+    "enablon:client=Enablon Internal" `
+    "enablon:cost_center=$COST_CENTER" `
+    "enablon:owner=$OWNER" `
+    "enablon:contact=$CONTACT"
 
 # Get connection information
 $ACR_LOGIN_SERVER = az acr show --name $ACR_NAME --query loginServer -o tsv
