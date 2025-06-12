@@ -5,9 +5,20 @@ Write-Host "=== Building and Deploying Microservices ===" -ForegroundColor Green
 
 # Get Terraform outputs
 Write-Host "Getting deployment information from Terraform..." -ForegroundColor Yellow
-$BACKEND_URL = terraform output -raw backend_url
-$ACR_NAME = terraform output -raw acr_name
-$RESOURCE_GROUP = terraform output -raw resource_group_name
+
+# Function to get clean terraform output
+function Get-TerraformOutput {
+    param($OutputName)
+    $output = & terraform output -raw $OutputName 2>&1
+    if ($output -is [array]) {
+        $output = $output | Where-Object { $_ -and $_ -notmatch "Warning:|│|╵|╷" -and $_.Trim() -ne "" } | Select-Object -First 1
+    }
+    return $output
+}
+
+$BACKEND_URL = Get-TerraformOutput "backend_url"
+$ACR_NAME = Get-TerraformOutput "acr_name"
+$RESOURCE_GROUP = Get-TerraformOutput "resource_group_name"
 
 if ([string]::IsNullOrEmpty($BACKEND_URL) -or [string]::IsNullOrEmpty($ACR_NAME)) {
     Write-Host "Error: Could not get Terraform outputs. Make sure 'terraform apply' has been run first." -ForegroundColor Red
@@ -33,7 +44,7 @@ az acr build --registry $ACR_NAME --image ecommerce-backend:latest . --platform 
 
 # Build and push Frontend with the backend URL
 Write-Host "Building Frontend with API URL: $BACKEND_URL" -ForegroundColor Yellow
-Set-Location -Path "../src/frontend"
+Set-Location -Path "$ScriptDir/../src/frontend"
 az acr build --registry $ACR_NAME --image ecommerce-frontend:latest . --platform linux/amd64 --build-arg NEXT_PUBLIC_API_URL=$BACKEND_URL
 
 # Update the container apps to use the new images
@@ -50,6 +61,7 @@ az containerapp update `
     --image "$ACR_NAME.azurecr.io/ecommerce-frontend:latest"
 
 Write-Host "=== Deployment Complete ===" -ForegroundColor Green
-Write-Host "Frontend URL: $(terraform output -raw frontend_url)" -ForegroundColor Cyan
+$FRONTEND_URL = Get-TerraformOutput "frontend_url"
+Write-Host "Frontend URL: $FRONTEND_URL" -ForegroundColor Cyan
 Write-Host "Backend URL: $BACKEND_URL" -ForegroundColor Cyan
 Write-Host "Swagger UI: $BACKEND_URL/swagger/index.html" -ForegroundColor Cyan
