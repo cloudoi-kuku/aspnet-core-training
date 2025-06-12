@@ -1,0 +1,19 @@
+{{- if .Values.sqlserver.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ecommerce-app.fullname" . }}-sqlserver
+  labels:
+    {{- include "ecommerce-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sqlserver
+spec:
+  type: {{ .Values.sqlserver.service.type }}
+  ports:
+    - port: {{ .Values.sqlserver.service.port }}
+      targetPort: sqlserver
+      protocol: TCP
+      name: sqlserver
+  selector:
+    {{- include "ecommerce-app.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: sqlserver
+{{- end }}

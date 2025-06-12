@@ -1,0 +1,52 @@
+# Module 13: Terraform Variables File
+
+# Azure Region
+location = "westus"
+
+# Base name for resources (optional - defaults to "microservices")
+# base_name = "microservices"
+
+# Common Tags (Override defaults if needed)
+common_tags = {
+  ManagedBy             = "Terraform"
+  Environment           = "Training"
+  Project              = "Microservices"
+  Module               = "Module13"
+  "enablon:client"      = "Enablon Internal"
+  "enablon:cost_center" = "IT-Training"
+  "enablon:owner"       = "Your Name"
+  "enablon:contact"     = "your.email@company.com"
+}
+
+# SQL Server Configuration
+sql_admin_username = "sqladmin"
+sql_admin_password = "P@ssw0rd123!" # Change this to a secure password
+
+# Azure AD Configuration (Optional - for SQL Server AAD auth)
+azuread_admin_login     = ""
+azuread_admin_object_id = ""
+
+# Container App Configuration
+container_cpu    = 0.5
+container_memory = "1.0Gi"
+
+# Scaling Configuration
+min_replicas = 1
+max_replicas = 3
+
+# Additional Tags
+tags = {
+  Purpose = "Training"
+  Course  = "ASP.NET Core Microservices"
+}
+
+# Feature Flags
+enable_monitoring        = true
+enable_auto_scaling      = true
+enable_service_discovery = true
+
+# Optional: Redis Configuration
+# redis_connection_string = "your-redis-connection-string"
+
+# Optional: JWT Configuration (will use default if not provided)
+# jwt_secret_key = "your-super-secret-jwt-key-change-this-in-production"

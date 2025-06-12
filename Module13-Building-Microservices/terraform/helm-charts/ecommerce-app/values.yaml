@@ -23,7 +23,7 @@ frontend:
     targetPort: 3000
   
   ingress:
-    enabled: true
+    enabled: false  # Disabled for local testing
     className: "nginx"
     annotations:
       nginx.ingress.kubernetes.io/rewrite-target: /
@@ -54,7 +54,7 @@ frontend:
     - name: NODE_ENV
       value: "production"
     - name: NEXT_PUBLIC_API_URL
-      value: "http://ecommerce-backend:7000"
+      value: "http://ecommerce-backend:5050"
 
 # Backend configuration (.NET 8 API)
 backend:
@@ -68,12 +68,11 @@ backend:
   
   service:
     type: ClusterIP
-    port: 7000
-    targetPort: 7000
-    metricsPort: 7001
+    port: 5050
+    targetPort: 5050
   
   ingress:
-    enabled: true
+    enabled: false  # Disabled for local testing
     className: "nginx"
     annotations:
       nginx.ingress.kubernetes.io/rewrite-target: /
@@ -104,35 +103,65 @@ backend:
     - name: ASPNETCORE_ENVIRONMENT
       value: "Production"
     - name: ASPNETCORE_URLS
-      value: "http://+:7000"
+      value: "http://+:5050"
   
   # Health checks
   livenessProbe:
     httpGet:
-      path: /api/health
-      port: 7000
+      path: /health
+      port: 5050
     initialDelaySeconds: 30
     periodSeconds: 10
-  
+
   readinessProbe:
     httpGet:
-      path: /api/health
-      port: 7000
+      path: /health
+      port: 5050
     initialDelaySeconds: 5
     periodSeconds: 5
 
-# Database configuration (SQLite - using persistent volume)
-database:
-  enabled: true
+# Database configuration (SQL Server)
+sqlserver:
+  enabled: false  # Temporarily disable to test with SQLite
+  image:
+    repository: mcr.microsoft.com/mssql/server
+    tag: "2019-latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 1433
+
   persistence:
-    enabled: true
+    enabled: false  # Disable for local testing to avoid permission issues
+    storageClass: "local-path"
+    accessMode: ReadWriteOnce
+    size: 5Gi
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# Legacy database configuration (kept for compatibility)
+database:
+  enabled: false
+  persistence:
+    enabled: false
     storageClass: "managed-premium"
     accessMode: ReadWriteOnce
     size: 1Gi
 
-# Redis configuration
+# Redis configuration (disabled for simplified testing)
 redis:
-  enabled: true
+  enabled: false
   auth:
     enabled: false
   master:
@@ -143,9 +172,9 @@ redis:
     persistence:
       enabled: false
 
-# RabbitMQ configuration
+# RabbitMQ configuration (disabled for simplified testing)
 rabbitmq:
-  enabled: true
+  enabled: false
   auth:
     username: "admin"
     password: "admin123"
@@ -154,11 +183,11 @@ rabbitmq:
   service:
     type: ClusterIP
 
-# Monitoring and observability
+# Monitoring and observability (disabled for simplified testing)
 monitoring:
-  enabled: true
+  enabled: false
   serviceMonitor:
-    enabled: true
+    enabled: false
     namespace: monitoring
     interval: 30s
 
@@ -185,7 +214,7 @@ monitoring:
 
       - job_name: 'ecommerce-backend'
         static_configs:
-          - targets: ['ecommerce-app-backend:7001']
+          - targets: ['ecommerce-app-backend:5050']
         metrics_path: '/metrics'
         scrape_interval: 30s
 
@@ -294,6 +323,10 @@ config:
     audience: "ecommerce-frontend"
     # Secret key should be provided via external secret management
     secretKey: "your-super-secret-jwt-key-change-this-in-production"
+
+  # SQL Server configuration
+  sqlserver:
+    password: "YourStrong@Passw0rd"
 
 # Service Account
 serviceAccount:

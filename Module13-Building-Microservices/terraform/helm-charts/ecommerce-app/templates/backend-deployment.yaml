@@ -34,27 +34,18 @@ spec:
         runAsNonRoot: true
         runAsUser: 1001
         fsGroup: 1001
-      initContainers:
-        - name: wait-for-redis
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              until nc -z {{ .Release.Name }}-redis-master 6379; do
-                echo "Waiting for Redis..."
-                sleep 2
-              done
-              echo "Redis is ready!"
-        - name: wait-for-rabbitmq
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              until nc -z {{ .Release.Name }}-rabbitmq 5672; do
-                echo "Waiting for RabbitMQ..."
-                sleep 2
-              done
-              echo "RabbitMQ is ready!"
+      # initContainers disabled for SQLite testing
+      # initContainers:
+      #   - name: wait-for-sqlserver
+      #     image: busybox:1.35
+      #     command: ['sh', '-c']
+      #     args:
+      #       - |
+      #         until nc -z {{ include "ecommerce-app.fullname" . }}-sqlserver 1433; do
+      #           echo "Waiting for SQL Server..."
+      #           sleep 2
+      #         done
+      #         echo "SQL Server is ready!"
       containers:
         - name: backend
           securityContext:
@@ -69,20 +60,17 @@ spec:
             - name: http
               containerPort: {{ .Values.backend.service.targetPort }}
               protocol: TCP
-            - name: metrics
-              containerPort: {{ .Values.backend.service.metricsPort }}
-              protocol: TCP
           env:
             {{- range .Values.backend.env }}
             - name: {{ .name }}
               value: {{ .value | quote }}
             {{- end }}
             - name: ConnectionStrings__DefaultConnection
-              value: "Data Source=/app/data/ecommerce.db"
+              value: "Server={{ include "ecommerce-app.fullname" . }}-sqlserver;Database=ECommerceDB;User Id=sa;Password={{ .Values.config.sqlserver.password }};TrustServerCertificate=true;MultipleActiveResultSets=true"
             - name: ConnectionStrings__Redis
-              value: "{{ .Release.Name }}-redis-master:6379"
+              value: "localhost:6379"
             - name: ConnectionStrings__RabbitMQ
-              value: "amqp://{{ .Values.rabbitmq.auth.username }}:{{ .Values.rabbitmq.auth.password }}@{{ .Release.Name }}-rabbitmq:5672/"
+              value: "amqp://guest:guest@localhost:5672/"
             - name: JwtSettings__SecretKey
               valueFrom:
                 secretKeyRef:
@@ -105,8 +93,6 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            - name: data
-              mountPath: /app/data
             - name: logs
               mountPath: /app/logs
       volumes:
@@ -114,14 +100,6 @@ spec:
           emptyDir: {}
         - name: logs
           emptyDir: {}
-        {{- if .Values.database.persistence.enabled }}
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ include "ecommerce-app.fullname" . }}-data
-        {{- else }}
-        - name: data
-          emptyDir: {}
-        {{- end }}
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

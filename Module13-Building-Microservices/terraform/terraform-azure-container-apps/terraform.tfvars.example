@@ -1,0 +1,19 @@
+# Minimal configuration for deployment
+# Copy this file to terraform.tfvars
+
+# Optional: Change the Azure region (default: westus)
+# location = "eastus"
+
+# Optional: Change the base name for resources (default: microservices)
+# base_name = "myapp"
+
+# Optional: Use SQL Server instead of SQLite (increases cost)
+# use_sql_server = true
+# sql_admin_password = "YourSecurePassword123!"  # Required if use_sql_server = true
+
+# The deployment will automatically:
+# - Use SQLite by default (no database cost)
+# - Generate unique resource names
+# - Configure CORS between frontend and backend
+# - Set up proper networking and security
+# - Configure Application Insights monitoring

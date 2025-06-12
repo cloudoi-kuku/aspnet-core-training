@@ -12,10 +12,6 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
-    - port: {{ .Values.backend.service.metricsPort }}
-      targetPort: metrics
-      protocol: TCP
-      name: metrics
   selector:
     {{- include "ecommerce-app.selectorLabels" . | nindent 4 }}
     component: backend

@@ -3,7 +3,7 @@
 
 # Global Azure configurations
 global:
-  imageRegistry: ""
+  imageRegistry: "ecommerceacrrv2i.azurecr.io"
   imagePullSecrets: []
   storageClass: "managed-premium"
 
@@ -78,9 +78,8 @@ backend:
   
   service:
     type: ClusterIP
-    port: 7000
-    targetPort: 7000
-    metricsPort: 7001
+    port: 5050
+    targetPort: 5050
   
   ingress:
     enabled: true
@@ -127,11 +126,40 @@ backend:
               - ecommerce-app-backend
           topologyKey: kubernetes.io/hostname
 
-# Database configuration with Azure Premium storage
-database:
+# SQL Server configuration with Azure Premium storage
+sqlserver:
   enabled: true
+  image:
+    repository: mcr.microsoft.com/mssql/server
+    tag: "2022-latest"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 1433
+
   persistence:
     enabled: true
+    storageClass: "managed-premium"
+    accessMode: ReadWriteOnce
+    size: 10Gi  # Larger size for production SQL Server
+
+  resources:
+    limits:
+      cpu: 4000m
+      memory: 8Gi
+    requests:
+      cpu: 2000m
+      memory: 4Gi
+
+  nodeSelector:
+    kubernetes.io/os: linux
+
+# Legacy database configuration (disabled)
+database:
+  enabled: false
+  persistence:
+    enabled: false
     storageClass: "managed-premium"
     accessMode: ReadWriteOnce
     size: 5Gi  # Larger size for production
@@ -201,7 +229,7 @@ monitoring:
 
       - job_name: 'ecommerce-backend'
         static_configs:
-          - targets: ['ecommerce-app-backend:7001']
+          - targets: ['ecommerce-app-backend:5050']
         metrics_path: '/metrics'
         scrape_interval: 15s  # More frequent for production
   
@@ -282,6 +310,9 @@ config:
     issuer: "ecommerce-api-azure"
     audience: "ecommerce-frontend-azure"
     secretKey: "azure-super-secure-jwt-key-change-this-in-production"
+
+  sqlserver:
+    password: "YourStrong@Passw0rd"
 
 # Azure Load Balancer specific annotations
 loadBalancer:

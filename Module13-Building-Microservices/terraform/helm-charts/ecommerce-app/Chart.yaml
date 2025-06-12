@@ -20,23 +20,24 @@ maintainers:
   - name: Development Team
     email: dev@ecommerce.com
 
-dependencies:
-  - name: redis
-    version: "18.4.0"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: redis.enabled
-  - name: rabbitmq
-    version: "12.5.0"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: rabbitmq.enabled
-  - name: kube-prometheus-stack
-    version: "55.5.0"
-    repository: "https://prometheus-community.github.io/helm-charts"
-    condition: monitoring.prometheus.enabled
-  - name: grafana
-    version: "7.0.19"
-    repository: "https://grafana.github.io/helm-charts"
-    condition: monitoring.grafana.enabled
+# Dependencies temporarily removed for simplified testing
+# dependencies:
+#   - name: redis
+#     version: "18.4.0"
+#     repository: "https://charts.bitnami.com/bitnami"
+#     condition: redis.enabled
+#   - name: rabbitmq
+#     version: "12.5.0"
+#     repository: "https://charts.bitnami.com/bitnami"
+#     condition: rabbitmq.enabled
+#   - name: kube-prometheus-stack
+#     version: "55.5.0"
+#     repository: "https://prometheus-community.github.io/helm-charts"
+#     condition: monitoring.prometheus.enabled
+#   - name: grafana
+#     version: "7.0.19"
+#     repository: "https://grafana.github.io/helm-charts"
+#     condition: monitoring.grafana.enabled
 
 annotations:
   category: E-Commerce

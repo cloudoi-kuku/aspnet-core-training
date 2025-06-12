@@ -1,0 +1,5 @@
+CREATE TABLE Categories (Id INT IDENTITY(1,1) PRIMARY KEY, Name NVARCHAR(100) NOT NULL, Description NVARCHAR(500));
+CREATE TABLE Products (Id INT IDENTITY(1,1) PRIMARY KEY, Name NVARCHAR(255) NOT NULL, Description NVARCHAR(MAX), Price DECIMAL(18,2) NOT NULL, CategoryId INT, Stock INT NOT NULL DEFAULT 0, ImageUrl NVARCHAR(500), CreatedAt DATETIME2 DEFAULT GETDATE(), UpdatedAt DATETIME2 DEFAULT GETDATE(), FOREIGN KEY (CategoryId) REFERENCES Categories(Id));
+INSERT INTO Categories (Name, Description) VALUES ('Electronics', 'Electronic devices'), ('Clothing', 'Apparel'), ('Books', 'Reading materials');
+INSERT INTO Products (Name, Description, Price, CategoryId, Stock, ImageUrl) VALUES ('Laptop', 'High-performance laptop', 999.99, 1, 50, 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853');
+EOF < /dev/null

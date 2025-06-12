@@ -5,26 +5,12 @@ metadata:
   labels:
     {{- include "ecommerce-app.labels" . | nindent 4 }}
 data:
-  appsettings.Production.json: |
-    {
-      "Logging": {
-        "LogLevel": {
-          "Default": "Information",
-          "Microsoft.AspNetCore": "Warning"
-        }
-      },
-      "ConnectionStrings": {
-        "DefaultConnection": "Data Source={{ .Values.backend.database.path }};",
-        "Redis": "{{ .Values.redis.host }}:{{ .Values.redis.port }}"
-      },
-      "JwtSettings": {
-        "Issuer": "{{ .Values.backend.jwt.issuer }}",
-        "Audience": "{{ .Values.backend.jwt.audience }}",
-        "ExpiryDays": {{ .Values.backend.jwt.expiryDays }}
-      },
-      "AllowedHosts": "*",
-      "CorsOrigins": [
-        "http://{{ include "ecommerce-app.fullname" . }}-frontend:3000",
-        "http://localhost:3000"
-      ]
-    }
+  # Basic configuration - connection strings are provided via environment variables
+  app.name: {{ .Values.config.app.name | quote }}
+  app.version: {{ .Values.config.app.version | quote }}
+  app.environment: {{ .Values.config.app.environment | quote }}
+
+  # CORS origins
+  cors.origins: |
+    http://{{ include "ecommerce-app.fullname" . }}-frontend:3000
+    http://localhost:3000

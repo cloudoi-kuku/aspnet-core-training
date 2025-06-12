@@ -2172,6 +2172,8 @@ public class AsyncOptimizationService : IAsyncOptimizationService
 
             // Simulate streaming delay
             await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            _logger.LogInformation("Yielded item: {Item}", processed);
+            Console.WriteLine($"Yielded item: {processed}");
         }
     }
 

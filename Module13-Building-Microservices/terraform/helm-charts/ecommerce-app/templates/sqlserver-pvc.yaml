@@ -1,0 +1,22 @@
+{{- if and .Values.sqlserver.enabled .Values.sqlserver.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ecommerce-app.fullname" . }}-sqlserver-data
+  labels:
+    {{- include "ecommerce-app.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sqlserver
+spec:
+  accessModes:
+    - {{ .Values.sqlserver.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.sqlserver.persistence.size }}
+  {{- if .Values.sqlserver.persistence.storageClass }}
+  {{- if (eq "-" .Values.sqlserver.persistence.storageClass) }}
+  storageClassName: ""
+  {{- else }}
+  storageClassName: "{{ .Values.sqlserver.persistence.storageClass }}"
+  {{- end }}
+  {{- end }}
+{{- end }}

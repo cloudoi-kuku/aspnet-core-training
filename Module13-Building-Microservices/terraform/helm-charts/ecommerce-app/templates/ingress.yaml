@@ -1,4 +1,5 @@
-{{- if .Values.ingress.enabled -}}
+{{- if false -}}
+# Global ingress disabled for local testing - using individual frontend/backend ingress instead
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

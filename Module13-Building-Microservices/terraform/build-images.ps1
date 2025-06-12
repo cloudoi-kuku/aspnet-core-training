@@ -74,7 +74,7 @@ $frontendBuildArgs = @(
     "--tag", "${FrontendImage}:${Tag}",
     "--file", "Dockerfile",
     "--build-arg", "NODE_ENV=production",
-    "--build-arg", "NEXT_PUBLIC_API_URL=http://ecommerce-app-backend:7000",
+    "--build-arg", "NEXT_PUBLIC_API_URL=http://ecommerce-app-backend:5050",
     "."
 )
 
@@ -147,7 +147,7 @@ if ($frontendRunning) {
 
 # Test backend image
 Write-Host "${Yellow}Testing backend image...${Reset}"
-$backendTest = docker run --rm -d -p 7001:7000 -p 7002:7001 "${BackendImage}:${Tag}"
+$backendTest = docker run --rm -d -p 5051:5050 "${BackendImage}:${Tag}"
 Start-Sleep -Seconds 5
 
 $backendRunning = docker ps | Select-String $backendTest

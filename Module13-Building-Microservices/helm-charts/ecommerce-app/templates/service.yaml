@@ -1,4 +1,4 @@
-{{- range $service := list "productCatalog" "orderManagement" "userManagement" "notificationService" "apiGateway" "frontend" }}
+{{- range $service := list "productService" "orderService" "customerService" "apiGateway" "frontend" }}
 {{- $config := index $.Values $service }}
 {{- if $config.enabled }}
 ---

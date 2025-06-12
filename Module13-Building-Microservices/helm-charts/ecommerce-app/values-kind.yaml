@@ -1,0 +1,143 @@
+# KIND-specific values for ecommerce-app
+global:
+  imageRegistry: ""  # No registry needed for KIND
+  imagePullSecrets: []  # No secrets needed for local images
+  
+# Product Service
+productService:
+  enabled: true
+  replicaCount: 1  # Reduced for local testing
+  image:
+    repository: product-service
+    tag: "v1.0.0"
+    pullPolicy: Never  # Never pull from registry, use local images
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 50m      # Reduced for local testing
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Development"
+    - name: ASPNETCORE_URLS
+      value: "http://+:80"
+
+# Order Service
+orderService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: order-service
+    tag: "v1.0.0"
+    pullPolicy: Never
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Development"
+    - name: ASPNETCORE_URLS
+      value: "http://+:80"
+    - name: Services__ProductService
+      value: "http://product-service/"
+
+# Customer Service
+customerService:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: customer-service
+    tag: "v1.0.0"
+    pullPolicy: Never
+  
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Development"
+    - name: ASPNETCORE_URLS
+      value: "http://+:80"
+
+# API Gateway
+apiGateway:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: api-gateway
+    tag: "v1.0.0"
+    pullPolicy: Never
+  
+  service:
+    type: NodePort  # NodePort for easy access in KIND
+    port: 80
+    targetPort: 80
+    nodePort: 30080  # Access via localhost:30080
+  
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Development"
+    - name: ASPNETCORE_URLS
+      value: "http://+:80"
+
+# Frontend (if you have one)
+frontend:
+  enabled: false  # Disable for now, focus on APIs
+
+# Ingress Configuration (simplified for KIND)
+ingress:
+  enabled: false  # Use NodePort instead for simplicity
+
+# Horizontal Pod Autoscaler (disabled for local testing)
+autoscaling:
+  enabled: false
+
+# Pod Disruption Budget (not needed for single replicas)
+podDisruptionBudget:
+  enabled: false
+
+# Network Policies (disabled for local testing)
+networkPolicies:
+  enabled: false
+
+# Monitoring (optional for local)
+monitoring:
+  enabled: false

@@ -264,6 +264,22 @@ Write-Host "☁️ Module 13: Building Microservices with Azure" -ForegroundColo
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Magenta
 Write-Host ""
 
+# Show directory structure that will be created
+if ($ExerciseName -eq "exercise01") {
+    Write-Host "📁 Directory Structure Overview:" -ForegroundColor Cyan
+    Write-Host "Module13-Building-Microservices/" -ForegroundColor White
+    Write-Host "├── launch-exercises.ps1 (this script)" -ForegroundColor Gray
+    Write-Host "└── AzureECommerce/ (will be created)" -ForegroundColor Yellow
+    Write-Host "    ├── setup-azure.ps1" -ForegroundColor Gray
+    Write-Host "    ├── azure-config.ps1 (generated after setup)" -ForegroundColor Green
+    Write-Host "    └── SourceCode/" -ForegroundColor Gray
+    Write-Host "        └── AzureECommerce/ (created in exercise02)" -ForegroundColor Gray
+    Write-Host "            ├── ProductService/" -ForegroundColor Gray
+    Write-Host "            ├── OrderService/" -ForegroundColor Gray
+    Write-Host "            └── deploy-to-azure.ps1 (created in exercise03)" -ForegroundColor Green
+    Write-Host ""
+}
+
 # Show learning objectives
 Show-LearningObjectives $ExerciseName
 
@@ -365,7 +381,7 @@ if ($STUDENT_ID_CLEAN.Length -gt 20) {
 
 # Variables
 $RESOURCE_GROUP = "rg-microservices-$STUDENT_ID_CLEAN"
-$LOCATION = "eastus"
+$LOCATION = "westus"
 $RANDOM_SUFFIX = Get-Random -Minimum 1000 -Maximum 9999
 $ACR_NAME = "acrms$STUDENT_ID_CLEAN$RANDOM_SUFFIX"
 $ENVIRONMENT = "ms-env-$STUDENT_ID_CLEAN"
@@ -705,19 +721,29 @@ Deploying to Azure Container Apps:
             exit 1
         }
         
-        # Create deployment script
-        New-FileInteractive -FilePath "deploy-to-azure.ps1" -Content @'
+        # Create deployment script in the SourceCode/AzureECommerce directory where the services are
+        New-FileInteractive -FilePath "SourceCode/AzureECommerce/deploy-to-azure.ps1" -Content @'
 # Deploy Microservices to Azure Container Apps
 
 Write-Host "🚀 Deploying to Azure Container Apps..." -ForegroundColor Cyan
 
 # Load configuration
-if (!(Test-Path "../../azure-config.ps1")) {
-    Write-Error "Please run exercise01 to create Azure resources first!"
-    exit 1
+# Try multiple possible locations for azure-config.ps1
+$configPaths = @("azure-config.ps1", "../azure-config.ps1", "../../azure-config.ps1")
+$configFound = $false
+
+foreach ($path in $configPaths) {
+    if (Test-Path $path) {
+        . $path
+        $configFound = $true
+        break
+    }
 }
 
-. ../../azure-config.ps1
+if (-not $configFound) {
+    Write-Error "azure-config.ps1 not found! Please run exercise01 to create Azure resources first!"
+    exit 1
+}
 
 # Login to ACR
 Write-Host "Logging into Azure Container Registry..." -ForegroundColor Yellow
@@ -735,6 +761,11 @@ Set-Location "OrderService"
 az acr build --registry $ACR_NAME --image orderservice:v1 . --platform linux/amd64
 Set-Location ".."
 
+# Get ACR credentials
+Write-Host "Getting ACR credentials..." -ForegroundColor Yellow
+$ACR_USERNAME = az acr credential show --name $ACR_NAME --query username -o tsv
+$ACR_PASSWORD = az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv
+
 # Deploy ProductService
 Write-Host "Deploying ProductService to Container Apps..." -ForegroundColor Yellow
 az containerapp create `
@@ -746,6 +777,9 @@ az containerapp create `
   --ingress external `
   --min-replicas 1 `
   --max-replicas 3 `
+  --registry-server $ACR_LOGIN_SERVER `
+  --registry-username $ACR_USERNAME `
+  --registry-password $ACR_PASSWORD `
   --env-vars `
     ConnectionStrings__DefaultConnection="$PRODUCT_DB_CONNECTION" `
     ApplicationInsights__ConnectionString="$APP_INSIGHTS_CONNECTION"
@@ -764,6 +798,9 @@ az containerapp create `
   --ingress external `
   --min-replicas 1 `
   --max-replicas 3 `
+  --registry-server $ACR_LOGIN_SERVER `
+  --registry-username $ACR_USERNAME `
+  --registry-password $ACR_PASSWORD `
   --env-vars `
     ConnectionStrings__DefaultConnection="$ORDER_DB_CONNECTION" `
     ApplicationInsights__ConnectionString="$APP_INSIGHTS_CONNECTION" `
@@ -777,7 +814,8 @@ Write-Host "Product Service: https://$PRODUCT_URL" -ForegroundColor Cyan
 Write-Host "Order Service: https://$ORDER_URL" -ForegroundColor Cyan
 '@ -Description "Azure deployment script for microservices"
         
-        Write-Success "Deployment scripts created! Run .\deploy-services.ps1 to deploy to Azure."
+        Write-Success "Deployment script created!"
+        Write-Info "Navigate to SourceCode\AzureECommerce and run .\deploy-to-azure.ps1"
     }
     
     "exercise04" {
@@ -952,29 +990,58 @@ Write-Info "📋 Next steps:"
 
 switch ($ExerciseName) {
     "exercise01" {
+        Write-Host "📂 DIRECTORY: You should be in Module13-Building-Microservices directory" -ForegroundColor Yellow
+        Write-Host ""
         Write-Host "1. Run the Azure setup script: " -NoNewline
         Write-Host ".\setup-azure.ps1" -ForegroundColor Cyan
         Write-Host "2. Enter your Student ID when prompted"
-        Write-Host "3. Wait for all Azure resources to be created"
-        Write-Host "4. Verify azure-config.ps1 was created"
-        Write-Host "5. Review the cost estimation in docs\azure-cost-estimation.md"
+        Write-Host "3. Enter required organization tags (cost center, owner, contact)"
+        Write-Host "4. Wait for all Azure resources to be created (~5 minutes)"
+        Write-Host "5. Verify azure-config.ps1 was created in AzureECommerce directory"
+        Write-Host ""
+        Write-Host "✅ After completion, you'll have:" -ForegroundColor Green
+        Write-Host "   • Resource Group with all Azure services"
+        Write-Host "   • azure-config.ps1 file with all connection strings"
     }
     "exercise02" {
-        Write-Host "1. Navigate to: " -NoNewline
-        Write-Host "SourceCode\AzureECommerce" -ForegroundColor Cyan
-        Write-Host "2. Build the solution: " -NoNewline
+        Write-Host "📂 CURRENT DIRECTORY: AzureECommerce (created by exercise01)" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "🚨 This exercise creates the microservices in:" -ForegroundColor Red
+        Write-Host "   AzureECommerce/SourceCode/AzureECommerce" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "1. The script will create ProductService and OrderService projects"
+        Write-Host "2. Navigate to the created directory: " -NoNewline
+        Write-Host "cd SourceCode\AzureECommerce" -ForegroundColor Cyan
+        Write-Host "3. Build the solution: " -NoNewline
         Write-Host "dotnet build" -ForegroundColor Cyan
-        Write-Host "3. Update Program.cs in each service for Azure SQL"
-        Write-Host "4. Add health check endpoints"
-        Write-Host "5. Test locally with Docker SQL Server"
+        Write-Host "4. Review the generated code and Dockerfiles"
+        Write-Host ""
+        Write-Host "✅ After completion, you'll have:" -ForegroundColor Green
+        Write-Host "   • ProductService and OrderService projects"
+        Write-Host "   • Dockerfiles for containerization"
     }
     "exercise03" {
-        Write-Host "1. Run deployment script: " -NoNewline
+        Write-Host "📂 CURRENT DIRECTORY: AzureECommerce (from exercise01)" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "🚨 IMPORTANT: The deployment script will be created in:" -ForegroundColor Red
+        Write-Host "   AzureECommerce/SourceCode/AzureECommerce/deploy-to-azure.ps1" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "1. After running this exercise, navigate to where services are: "
+        Write-Host "   " -NoNewline
+        Write-Host "cd SourceCode\AzureECommerce" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "2. Run the deployment script: " -NoNewline
         Write-Host ".\deploy-to-azure.ps1" -ForegroundColor Cyan
-        Write-Host "2. Wait for ACR builds to complete"
-        Write-Host "3. Verify Container Apps are created"
-        Write-Host "4. Test service URLs in browser"
-        Write-Host "5. Check Application Insights for telemetry"
+        Write-Host ""
+        Write-Host "3. The script will:"
+        Write-Host "   • Build and push Docker images to ACR (~3-5 minutes each)"
+        Write-Host "   • Deploy Container Apps with proper authentication"
+        Write-Host "   • Configure environment variables and connections"
+        Write-Host ""
+        Write-Host "4. After deployment completes:"
+        Write-Host "   • Note the service URLs displayed"
+        Write-Host "   • Test endpoints in browser"
+        Write-Host "   • Check Azure Portal for Container Apps"
     }
     "exercise04" {
         Write-Host "1. Add Polly packages: " -NoNewline
